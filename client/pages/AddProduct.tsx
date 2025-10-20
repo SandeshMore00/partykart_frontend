@@ -418,7 +418,6 @@ export default function AddProduct() {
                         type="file"
                         multiple
                         accept="image/*"
-                        capture="environment"
                         onChange={handleFileChange}
                         className="hidden"
                       />
