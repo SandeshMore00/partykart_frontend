@@ -1,0 +1,153 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+.config/
+!.env
+
+
+
+
+# Node modules (ensure this is excluded for all environments)
+node_modules/
+
+# Build directories (compiled code, etc.)
+dist/
+build/
+
+# Temporary files (cache, logs, etc.)
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Editor/IDE specific files
+.vscode/*
+!.vscode/extensions.json   # Keeps VSCode workspace extensions config
+.idea/
+
+# JetBrains IDE files
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment config files (important to exclude)
+.config/
+!.env    # If you want to track your `.env` file, otherwise leave it excluded
+.env.local
+.env.*.local
+
+# Package manager-specific
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+
+# Log files
+logs/
+*.log
+
+# Temporary or cached files
+*.local
+
+# Optional directories that could be generated during SSR (Server-side rendering)
+dist-ssr/
+
+# Optional: If you're using some kind of build or transpile system like Babel/Webpack
+# This is optional, but some projects may generate artifacts during the build process
+public/
+
+# Optional: If you're using TypeScript, it's good to ignore its compiled files
+*.tsbuildinfo
+
+
+
+# Node modules
+node_modules/
+
+# Build directories
+dist/
+build/
+dist-ssr/
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Temporary or cached files
+logs/
+*.local
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Editor/IDE specific files
+.vscode/*
+!.vscode/extensions.json   # Keep VSCode workspace extensions config
+.idea/
+
+# JetBrains IDE files
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment config files
+.config/
+!.env    # Track the .env file if you choose to
+.env.local
+.env.*.local
+
+# Package manager lock files (optional based on your preference)
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+
+# Optional: If you're using some kind of build or transpile system like Babel/Webpack
+public/
+
+# TypeScript build info (if applicable)
+*.tsbuildinfo
+
+
+
+# Force LF for all text files
+* text=auto
+
+# Force CRLF for certain files if needed
+*.bat text eol=crlf
+*.sh text eol=lf

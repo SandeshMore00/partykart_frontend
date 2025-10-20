@@ -1,0 +1,414 @@
+// import { useEffect, useState } from 'react';
+
+// interface Particle {
+//   id: number;
+//   x: number;
+//   y: number;
+//   size: number;
+//   color: string;
+//   speedX: number;
+//   speedY: number;
+//   type: 'sprinkle' | 'star';
+//   rotation: number;
+//   rotationSpeed: number;
+// }
+
+// const colors = [
+//   '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57',
+//   '#ff9ff3', '#54a0ff', '#5f27cd', '#00d2d3', '#ff9f43',
+//   '#ee5a24', '#009432', '#0652dd', '#9c88ff', '#fbc531'
+// ];
+
+// export default function AnimatedBackground() {
+//   const [particles, setParticles] = useState<Particle[]>([]);
+//   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+//   useEffect(() => {
+//     const updateDimensions = () => {
+//       setDimensions({
+//         width: window.innerWidth,
+//         height: window.innerHeight
+//       });
+//     };
+
+//     updateDimensions();
+//     window.addEventListener('resize', updateDimensions);
+
+//     return () => window.removeEventListener('resize', updateDimensions);
+//   }, []);
+
+//   useEffect(() => {
+//     if (dimensions.width === 0 || dimensions.height === 0) return;
+
+//     const createParticle = (id: number): Particle => ({
+//       id,
+//       x: Math.random() * dimensions.width,
+//       y: Math.random() * dimensions.height,
+//       size: Math.random() * 6 + 2,
+//       color: colors[Math.floor(Math.random() * colors.length)],
+//       speedX: (Math.random() - 0.5) * 0.5,
+//       speedY: (Math.random() - 0.5) * 0.5,
+//       type: Math.random() > 0.5 ? 'sprinkle' : 'star',
+//       rotation: Math.random() * 360,
+//       rotationSpeed: (Math.random() - 0.5) * 2
+//     });
+
+//     const initialParticles = Array.from({ length: 50 }, (_, i) => createParticle(i));
+//     setParticles(initialParticles);
+//   }, [dimensions]);
+
+//   useEffect(() => {
+//     const animateParticles = () => {
+//       setParticles(prevParticles =>
+//         prevParticles.map(particle => ({
+//           ...particle,
+//           x: particle.x + particle.speedX,
+//           y: particle.y + particle.speedY,
+//           rotation: particle.rotation + particle.rotationSpeed,
+//           ...(particle.x > dimensions.width && { x: -10 }),
+//           ...(particle.x < -10 && { x: dimensions.width }),
+//           ...(particle.y > dimensions.height && { y: -10 }),
+//           ...(particle.y < -10 && { y: dimensions.height })
+//         }))
+//       );
+//     };
+
+//     const interval = setInterval(animateParticles, 50);
+//     return () => clearInterval(interval);
+//   }, [dimensions]);
+
+//   const renderParticle = (particle: Particle) => {
+//     if (particle.type === 'star') {
+//       return (
+//         <div
+//           key={particle.id}
+//           className="absolute pointer-events-none"
+//           style={{
+//             left: particle.x,
+//             top: particle.y,
+//             transform: `rotate(${particle.rotation}deg)`,
+//             color: particle.color,
+//             fontSize: particle.size * 2
+//           }}
+//         >
+//           ★
+//         </div>
+//       );
+//     } else {
+//       return (
+//         <div
+//           key={particle.id}
+//           className="absolute pointer-events-none rounded-full"
+//           style={{
+//             left: particle.x,
+//             top: particle.y,
+//             width: particle.size,
+//             height: particle.size * 3,
+//             backgroundColor: particle.color,
+//             transform: `rotate(${particle.rotation}deg)`,
+//             borderRadius: '50%'
+//           }}
+//         />
+//       );
+//     }
+//   };
+
+//   return (
+//     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+//       {particles.map(renderParticle)}
+//     </div>
+//   );
+// }
+
+
+// import { useEffect, useState } from "react";
+
+// interface Balloon {
+//   id: number;
+//   x: number;
+//   y: number;
+//   size: number;
+//   color: string;
+//   speedX: number;
+//   speedY: number;
+//   opacity: number;
+// }
+
+// const colors = ["#ff6b6b", "#feca57", "#54a0ff", "#1dd1a1", "#f368e0"];
+
+// export default function BalloonAnimation() {
+//   const [balloons, setBalloons] = useState<Balloon[]>([]);
+//   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+//   useEffect(() => {
+//     const updateDimensions = () => {
+//       setDimensions({
+//         width: window.innerWidth,
+//         height: window.innerHeight,
+//       });
+//     };
+//     updateDimensions();
+//     window.addEventListener("resize", updateDimensions);
+//     return () => window.removeEventListener("resize", updateDimensions);
+//   }, []);
+
+//   useEffect(() => {
+//     if (dimensions.width === 0 || dimensions.height === 0) return;
+
+//     const createBalloon = (id: number): Balloon => ({
+//       id,
+//       x: Math.random() * dimensions.width,
+//       y: dimensions.height + Math.random() * 200, // start below screen
+//       size: Math.random() * 30 + 30, // bigger balloons
+//       color: colors[Math.floor(Math.random() * colors.length)],
+//       speedX: (Math.random() - 0.5) * 0.5, // gentle drift
+//       speedY: -Math.random() * 1 - 0.5, // always float upward
+//       opacity: 1,
+//     });
+
+//     const initialBalloons = Array.from({ length: 20 }, (_, i) =>
+//       createBalloon(i)
+//     );
+//     setBalloons(initialBalloons);
+//   }, [dimensions]);
+
+//   useEffect(() => {
+//     const animate = () => {
+//       setBalloons((prev) =>
+//         prev.map((b) => {
+//           let newY = b.y + b.speedY;
+//           let newOpacity = b.opacity - 0.002; // fade slowly
+//           if (newY < -100 || newOpacity <= 0) {
+//             // reset balloon at bottom
+//             return {
+//               ...b,
+//               x: Math.random() * dimensions.width,
+//               y: dimensions.height + 50,
+//               opacity: 1,
+//             };
+//           }
+//           return {
+//             ...b,
+//             x: b.x + b.speedX,
+//             y: newY,
+//             opacity: newOpacity,
+//           };
+//         })
+//       );
+//     };
+
+//     const interval = setInterval(animate, 30);
+//     return () => clearInterval(interval);
+//   }, [dimensions]);
+
+//   return (
+//     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+//       {balloons.map((b) => (
+//         <div
+//           key={b.id}
+//           className="absolute flex flex-col items-center"
+//           style={{
+//             left: b.x,
+//             top: b.y,
+//             opacity: b.opacity,
+//           }}
+//         >
+//           {/* Balloon shape */}
+//           <div
+//             style={{
+//               width: b.size,
+//               height: b.size * 1.3,
+//               backgroundColor: b.color,
+//               borderRadius: "50% 50% 50% 50% / 60% 60% 40% 40%",
+//               boxShadow: "inset -4px -6px rgba(0,0,0,0.1)",
+//             }}
+//           />
+//           {/* String */}
+//           <div
+//             style={{
+//               width: 2,
+//               height: 40,
+//               backgroundColor: "#555",
+//               marginTop: 2,
+//             }}
+//           />
+//         </div>
+//       ))}
+//     </div>
+//   );
+// }
+
+
+import { useEffect, useState } from "react";
+
+interface LogoParticle {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  speedX: number;
+  speedY: number;
+  rotation: number;
+  rotationSpeed: number;
+}
+
+interface StarParticle {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  opacity: number;
+  flickerSpeed: number;
+  color: string;
+}
+
+const starColors = [
+  "#ff6b6b", "#feca57", "#54a0ff",
+  "#5f27cd", "#1dd1a1", "#ff9ff3", "#f368e0",
+];
+
+export default function LogoBackground() {
+  const [logos, setLogos] = useState<LogoParticle[]>([]);
+  const [stars, setStars] = useState<StarParticle[]>([]);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const updateDimensions = () => {
+      setDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+    updateDimensions();
+    window.addEventListener("resize", updateDimensions);
+    return () => window.removeEventListener("resize", updateDimensions);
+  }, []);
+
+  // Create logos with responsive count & size
+  useEffect(() => {
+    if (dimensions.width === 0 || dimensions.height === 0) return;
+
+    const isMobile = dimensions.width < 768; // breakpoint
+    const logoCount = isMobile ? 6 : 15; // fewer logos on mobile
+    const sizeMin = isMobile ? 25 : 40;
+    const sizeMax = isMobile ? 50 : 80;
+
+    const createLogo = (id: number): LogoParticle => ({
+      id,
+      x: Math.random() * dimensions.width,
+      y: dimensions.height + Math.random() * 200,
+      size: Math.random() * (sizeMax - sizeMin) + sizeMin,
+      speedX: (Math.random() - 0.5) * 0.2,
+      speedY: -Math.random() * 0.6 - 0.3,
+      rotation: Math.random() * 360,
+      rotationSpeed: (Math.random() - 0.5) * 0.15,
+    });
+
+    setLogos(Array.from({ length: logoCount }, (_, i) => createLogo(i)));
+  }, [dimensions]);
+
+  // Animate logos
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLogos((prev) =>
+        prev.map((logo) => {
+          let newY = logo.y + logo.speedY;
+          let newRotation = logo.rotation + logo.rotationSpeed;
+
+          if (newY < -150) {
+            return {
+              ...logo,
+              x: Math.random() * dimensions.width,
+              y: dimensions.height + 50,
+              rotation: Math.random() * 360,
+            };
+          }
+
+          return {
+            ...logo,
+            x: logo.x + logo.speedX,
+            y: newY,
+            rotation: newRotation,
+          };
+        })
+      );
+    }, 40);
+    return () => clearInterval(interval);
+  }, [dimensions]);
+
+  // Create stars
+  useEffect(() => {
+    if (dimensions.width === 0 || dimensions.height === 0) return;
+
+    const starCount = dimensions.width < 768 ? 30 : 60; // fewer stars on mobile
+
+    const createStar = (id: number): StarParticle => ({
+      id,
+      x: Math.random() * dimensions.width,
+      y: Math.random() * dimensions.height,
+      size: Math.random() * 3 + 2,
+      opacity: Math.random(),
+      flickerSpeed: Math.random() * 0.02 + 0.01,
+      color: starColors[Math.floor(Math.random() * starColors.length)],
+    });
+
+    setStars(Array.from({ length: starCount }, (_, i) => createStar(i)));
+  }, [dimensions]);
+
+  // Animate stars
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStars((prev) =>
+        prev.map((star) => {
+          let newOpacity =
+            star.opacity +
+            (Math.random() > 0.5 ? star.flickerSpeed : -star.flickerSpeed);
+          if (newOpacity > 1) newOpacity = 1;
+          if (newOpacity < 0.2) newOpacity = 0.2;
+          return { ...star, opacity: newOpacity };
+        })
+      );
+    }, 80);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+      {/* Stars */}
+      {stars.map((star) => (
+        <div
+          key={star.id}
+          style={{
+            position: "absolute",
+            left: star.x,
+            top: star.y,
+            width: star.size,
+            height: star.size,
+            borderRadius: "50%",
+            backgroundColor: star.color,
+            opacity: star.opacity,
+            boxShadow: `0 0 8px ${star.color}, 0 0 15px ${star.color}`,
+          }}
+        />
+      ))}
+
+      {/* Logos */}
+      {logos.map((logo) => (
+        <img
+          key={logo.id}
+          src="/images/logo.png"
+          alt="logo"
+          style={{
+            position: "absolute",
+            left: logo.x,
+            top: logo.y,
+            width: logo.size,
+            height: logo.size,
+            opacity: 0.3,
+            transform: `rotate(${logo.rotation}deg)`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
