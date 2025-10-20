@@ -260,7 +260,7 @@ export default function Checkout() {
       {step === 3 && (
         <div className="space-y-6">
           <h2 className="text-xl font-semibold">Order Review</h2>
-          <OffersSelect onApply={setAppliedOffer} appliedOfferId={appliedOffer?.offer_id} />
+          <div className="hidden"><OffersSelect onApply={setAppliedOffer} appliedOfferId={appliedOffer?.offer_id} /></div>
           <div className="bg-gray-50 p-4 rounded-lg">
             <h3 className="font-semibold mb-2">Items ({items.length})</h3>
             {items.map((item) => (
@@ -270,11 +270,11 @@ export default function Checkout() {
               </div>
             ))}
             <hr className="my-2" />
-            <div className="flex justify-between">
+            <div className="flex justify-between hidden">
               <span>Offer Amount</span>
               <span className="text-green-600">-₹{offerAmount.toLocaleString('en-IN')}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between hidden">
               <span>Promocode Amount</span>
               <span className="text-green-600">-₹{promoAmount.toLocaleString('en-IN')}</span>
             </div>

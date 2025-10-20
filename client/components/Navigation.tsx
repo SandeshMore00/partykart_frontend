@@ -199,20 +199,26 @@ interface NavigationProps {
   onLoginClick: () => void;
 }
 
+interface NavItem {
+  path: string;
+  label: string;
+  hidden?: boolean;
+}
+
 export default function Navigation({ onLoginClick }: NavigationProps) {
   const location = useLocation();
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
-  const navItems = [
+  const navItems: NavItem[] = [
     { path: "/", label: "Home" },
     { path: "/contact", label: "Contact" },
-    { path: "/offers", label: "Offers" },
+    { path: "/offers", label: "Offers", hidden: true },
     { path: "/cart", label: "Cart" },
     { path: "/courses", label: "Courses" },
   ];
 
-  const authenticatedNavItems = [{ path: "/orders", label: "Orders" }];
+  const authenticatedNavItems: NavItem[] = [{ path: "/orders", label: "Orders" }];
 
   const allNavItems = user ? [...navItems, ...authenticatedNavItems] : navItems;
 
@@ -233,7 +239,8 @@ export default function Navigation({ onLoginClick }: NavigationProps) {
                   "py-2 px-4 text-sm font-medium transition-all duration-200 border-b-2 border-transparent hover:border-pink-400 hover:text-pink-600",
                   location.pathname === item.path
                     ? "text-pink-600 border-pink-500 bg-pink-50"
-                    : "text-gray-700 hover:bg-pink-25"
+                    : "text-gray-700 hover:bg-pink-25",
+                  item.hidden && "!hidden"
                 )}
               >
                 {item.label}
@@ -275,7 +282,8 @@ export default function Navigation({ onLoginClick }: NavigationProps) {
                   "block py-2 px-4 text-sm font-medium transition-all duration-200 border-b border-gray-200 hover:bg-pink-50 hover:text-pink-600",
                   location.pathname === item.path
                     ? "text-pink-600 bg-pink-50"
-                    : "text-gray-700"
+                    : "text-gray-700",
+                  item.hidden && "!hidden"
                 )}
               >
                 {item.label}
