@@ -3,7 +3,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
-// Configure multer for dashboard image uploads
+// Configure multer for dashboard image uploads 
 const dashboardStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'dashboard');
