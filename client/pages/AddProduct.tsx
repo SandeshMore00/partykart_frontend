@@ -15,8 +15,10 @@ import { Category, SubCategory, Product } from '@shared/api';
 interface AddProductFormData {
   product_name: string;
   product_price: string;
+  product_full_price: string; // Optional original/full price
   product_description: string;
   sub_category_id: string;
+  stock: string;
   files: File[];
   // Optional shipping fields
   weight: string;
@@ -37,8 +39,10 @@ export default function AddProduct() {
   const [formData, setFormData] = useState<AddProductFormData>({
     product_name: '',
     product_price: '',
+    product_full_price: '', // Optional original/full price
     product_description: '',
     sub_category_id: '',
+    stock: '',
     files: [],
     // Optional shipping fields
     weight: '',
@@ -93,6 +97,22 @@ export default function AddProduct() {
     }
   };
 
+  const handleStockChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Only allow integers (no decimals)
+    if (/^\d*$/.test(value)) {
+      setFormData(prev => ({ ...prev, stock: value }));
+    }
+  };
+
+  const handleFullPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Only allow integers (no decimals)
+    if (/^\d*$/.test(value)) {
+      setFormData(prev => ({ ...prev, product_full_price: value }));
+    }
+  };
+
   const handleNumericChange = (field: 'weight' | 'length' | 'width' | 'height', value: string) => {
     // Allow decimal numbers for shipping dimensions
     if (/^\d*\.?\d*$/.test(value)) {
@@ -102,25 +122,36 @@ export default function AddProduct() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    
+    // Validate file types and sizes
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const maxSize = 512000; // 500 KB in bytes
+    
+    for (const file of files) {
+      // Check file type
+      if (!validTypes.includes(file.type)) {
+        setError('Please upload only valid image files (JPEG, PNG, GIF, or WebP)');
+        e.target.value = '';
+        return;
+      }
+      // Check file size
+      if (file.size > maxSize) {
+        setError(`Image "${file.name}" is too large. Maximum size is 500 KB. Current size: ${(file.size / 1024).toFixed(2)} KB`);
+        e.target.value = '';
+        return;
+      }
+    }
+    
     const newFiles = [...formData.files, ...files];
     
     // Limit to 10 files
     if (newFiles.length > 10) {
       setError('Maximum 10 images allowed');
+      e.target.value = '';
       return;
     }
     
-    // Log file metadata for debugging
-    files.forEach(file => {
-      console.log('File metadata:', {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        lastModified: file.lastModified,
-        webkitRelativePath: file.webkitRelativePath
-      });
-    });
-    
+    setError(''); // Clear any previous errors
     setFormData(prev => ({ ...prev, files: newFiles }));
     
     // Create previews
@@ -149,6 +180,11 @@ export default function AddProduct() {
       setError('Product price must be a valid positive integer');
       return false;
     }
+    // Stock is optional, but if provided, it must be valid
+    if (formData.stock.trim() && (isNaN(parseInt(formData.stock)) || parseInt(formData.stock) < 0)) {
+      setError('Stock must be a valid non-negative integer');
+      return false;
+    }
     if (!formData.sub_category_id) {
       setError('Subcategory is required');
       return false;
@@ -170,6 +206,14 @@ export default function AddProduct() {
       formDataToSend.append('product_name', formData.product_name);
       formDataToSend.append('product_price', parseInt(formData.product_price).toString());
       formDataToSend.append('product_description', formData.product_description);
+      // Stock is optional
+      if (formData.stock.trim()) {
+        formDataToSend.append('stock', parseInt(formData.stock).toString());
+      }
+      // Full price is optional (only send if provided)
+      if (formData.product_full_price.trim()) {
+        formDataToSend.append('product_full_price', parseInt(formData.product_full_price).toString());
+      }
       if (formData.sub_category_id) {
         formDataToSend.append('sub_category_id', formData.sub_category_id);
       }
@@ -201,7 +245,7 @@ export default function AddProduct() {
         formDataToSend.append('files', file, file.name);
       });
       
-      const response = await fetch(config.PRODUCTS, {
+      const response = await fetch(config.CREATE_PRODUCTS, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${user?.token}`
@@ -213,24 +257,11 @@ export default function AddProduct() {
         const result = await response.json();
         if (result.status === 1) {
           setSuccess('Product created successfully!');
-          // Reset form
-          setFormData({
-            product_name: '',
-            product_price: '',
-            product_description: '',
-            sub_category_id: '',
-            files: [],
-            // Reset shipping fields
-            weight: '',
-            length: '',
-            width: '',
-            height: '',
-            origin_location: ''
-          });
-          setImagePreviews([]);
-          // Navigate back to admin dashboard after 2 seconds
+          // Scroll to top to show success message
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          // Refresh the page after showing message
           setTimeout(() => {
-            navigate('/admin');
+            window.location.reload();
           }, 2000);
         } else {
           setError(result.message || 'Failed to create product');
@@ -300,17 +331,42 @@ export default function AddProduct() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="product_price">Price * (Integer only)</Label>
+                  <Label htmlFor="product_price">Selling Price * (Integer only)</Label>
                   <Input
                     id="product_price"
-                    type="number"
-                    min="1"
+                    type="text"
+                    inputMode="numeric"
                     value={formData.product_price}
                     onChange={handlePriceChange}
-                    placeholder="Enter price (e.g., 100)"
+                    placeholder="Enter selling price (e.g., 100)"
                     required
                   />
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="product_full_price">Original/Full Price (Optional - Integer only)</Label>
+                  <Input
+                    id="product_full_price"
+                    type="text"
+                    inputMode="numeric"
+                    value={formData.product_full_price}
+                    onChange={handleFullPriceChange}
+                    placeholder="Enter original price (e.g., 150)"
+                  />
+                  <p className="text-xs text-gray-500">Leave empty if no discount. This shows crossed-out price.</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="stock">Stock (Optional - Integer only)</Label>
+                <Input
+                  id="stock"
+                  type="text"
+                  inputMode="numeric"
+                  value={formData.stock}
+                  onChange={handleStockChange}
+                  placeholder="Enter stock quantity (e.g., 50)"
+                />
               </div>
 
               <div className="space-y-2">
@@ -410,15 +466,14 @@ export default function AddProduct() {
                           Upload images
                         </span>
                         <span className="mt-1 block text-sm text-gray-500">
-                          PNG, JPG, GIF up to 5MB each
+                          JPEG, PNG, GIF, WebP - Max 500 KB each
                         </span>
                       </Label>
                       <Input
                         id="file-upload"
                         type="file"
                         multiple
-                        accept="image/*"
-                        capture="environment"
+                        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                         onChange={handleFileChange}
                         className="hidden"
                       />
@@ -435,6 +490,9 @@ export default function AddProduct() {
                           alt={`Preview ${index + 1}`}
                           className="w-full h-32 object-cover rounded-lg border"
                         />
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-2 py-1 rounded-b-lg">
+                          {(formData.files[index].size / 1024).toFixed(2)} KB
+                        </div>
                         <button
                           type="button"
                           onClick={() => removeImage(index)}
@@ -457,7 +515,11 @@ export default function AddProduct() {
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select a subcategory" />
                   </SelectTrigger>
-                  <SelectContent className="max-h-[300px] overflow-y-auto z-[9999]">
+                  <SelectContent 
+                    position="popper"
+                    className="max-h-[min(300px,50vh)] overflow-y-auto z-[99999]"
+                    sideOffset={4}
+                  >
                     {subcategories.map((subcategory) => (
                       <SelectItem 
                         key={subcategory.sub_category_id} 

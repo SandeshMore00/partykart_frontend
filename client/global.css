@@ -119,4 +119,69 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  .line-clamp-5 {
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* Mobile-friendly select dropdown fixes */
+@layer components {
+  /* Ensure select content is properly scrollable on mobile */
+  [data-radix-select-content] {
+    max-height: min(var(--radix-select-content-available-height, 300px), 50vh) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* Ensure select viewport is scrollable */
+  [data-radix-select-viewport] {
+    max-height: inherit;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent body scroll interference on mobile when dropdown is open */
+  @media (max-width: 768px) {
+    [data-radix-select-content] {
+      position: fixed !important;
+      max-height: 60vh !important;
+    }
+  }
+}
+
+/* Marquee animation for long text */
+@keyframes marquee-scroll {
+  0%, 15% {
+    transform: translateX(0);
+  }
+  45%, 55% {
+    transform: translateX(var(--marquee-distance, -50%));
+  }
+  85%, 100% {
+    transform: translateX(0);
+  }
+}
+
+.marquee-container {
+  overflow: hidden;
+  position: relative;
+}
+
+.marquee-text {
+  display: inline-block;
+  white-space: nowrap;
+  padding-right: 2rem;
+}
+
+.marquee-text.is-overflowing {
+  animation: marquee-scroll 6s ease-in-out infinite;
+}
+
+.marquee-text:hover {
+  animation-play-state: paused;
 }

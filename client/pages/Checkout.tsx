@@ -16,8 +16,9 @@ export default function Checkout() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Track order id for success message
+  // Track order id and total for success message
   const [orderId, setOrderId] = useState<string | number | null>(null);
+  const [orderTotal, setOrderTotal] = useState<string | null>(null);
 
   // Address form state
   const [address, setAddress] = useState({
@@ -59,21 +60,26 @@ export default function Checkout() {
   const handleOrderConfirm = async () => {
     setIsLoading(true);
     try {
-      // Build shipping address string
-      const shippingAddress = `${address.addressLine1}, ${address.addressLine2}, ${address.city}, ${address.state}, ${address.pincode}`;
-      // Build payload as array
-      const payload = items.map(item => ({
-        product_id: item.id,
-        quantity: item.quantity,
-        promocode_id: appliedOffer?.offer_id || null,
-        shipping_address: shippingAddress,
+      // Build payload matching the new API format
+      const payload = {
+        items: items.map(item => ({
+          product_id: item.id,
+          quantity: item.quantity
+        })),
         payment_method: paymentMethod.toUpperCase(),
-        payment_status: 'Pending'
-      }));
+        shipping_address: {
+          name: address.fullName,
+          phone: address.phone,
+          address: address.addressLine2 
+            ? `${address.addressLine1}, ${address.addressLine2}`
+            : address.addressLine1,
+          city: address.city,
+          state: address.state,
+          pincode: address.pincode
+        }
+      };
 
-      // const response = await fetch('http://localhost:9020/v1/buy-product/', {
-      const response = await fetch(config.API.buyedProducts.create, {
-
+      const response = await fetch(config.PLACE_ORDER, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,13 +92,15 @@ export default function Checkout() {
         const result = await response.json();
         clearCart();
         setOrderId(result.order_id);
+        setOrderTotal(result.total);
         setStep(4);
       } else {
-        alert('Order failed. Please try again.');
+        const errorData = await response.json().catch(() => ({}));
+        alert(errorData.detail || errorData.message || 'Order failed. Please try again.');
       }
     } catch (error) {
       console.error('Order error:', error);
-      alert('Order failed. Please try again.');
+      alert('Order failed. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -260,7 +268,7 @@ export default function Checkout() {
       {step === 3 && (
         <div className="space-y-6">
           <h2 className="text-xl font-semibold">Order Review</h2>
-          <OffersSelect onApply={setAppliedOffer} appliedOfferId={appliedOffer?.offer_id} />
+          <div className="hidden"><OffersSelect onApply={setAppliedOffer} appliedOfferId={appliedOffer?.offer_id} /></div>
           <div className="bg-gray-50 p-4 rounded-lg">
             <h3 className="font-semibold mb-2">Items ({items.length})</h3>
             {items.map((item) => (
@@ -270,11 +278,11 @@ export default function Checkout() {
               </div>
             ))}
             <hr className="my-2" />
-            <div className="flex justify-between">
+            <div className="flex justify-between hidden">
               <span>Offer Amount</span>
               <span className="text-green-600">-₹{offerAmount.toLocaleString('en-IN')}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between hidden">
               <span>Promocode Amount</span>
               <span className="text-green-600">-₹{promoAmount.toLocaleString('en-IN')}</span>
             </div>
@@ -308,7 +316,12 @@ export default function Checkout() {
           </h2>
           {orderId && (
             <p className="text-lg font-bold text-gray-700 mb-2">
-              Order ID: {orderId}
+              Order ID: #{orderId}
+            </p>
+          )}
+          {orderTotal && (
+            <p className="text-xl font-semibold text-pink-600 mb-4">
+              Total Amount: ₹{parseFloat(orderTotal).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           )}
           <p className="text-gray-600 mb-6">

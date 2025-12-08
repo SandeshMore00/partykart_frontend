@@ -15,9 +15,17 @@ import { Category, SubCategory, Product, ProductImage } from '@shared/api';
 interface EditProductFormData {
   product_name: string;
   product_price: string;
+  product_full_price: string; // Optional original/full price
   product_description: string;
   sub_category_id: string;
+  stock: string;
   files: File[];
+  // Optional shipping fields
+  weight: string;
+  length: string;
+  width: string;
+  height: string;
+  origin_location: string;
 }
 
 export default function EditProduct() {
@@ -31,24 +39,33 @@ export default function EditProduct() {
   
   // Product data
   const [product, setProduct] = useState<Product | null>(null);
+  const [originalData, setOriginalData] = useState<EditProductFormData | null>(null);
   
   // Form data
   const [formData, setFormData] = useState<EditProductFormData>({
     product_name: '',
     product_price: '',
+    product_full_price: '', // Optional original/full price
     product_description: '',
     sub_category_id: '',
-    files: []
+    stock: '',
+    files: [],
+    // Optional shipping fields
+    weight: '',
+    length: '',
+    width: '',
+    height: '',
+    origin_location: ''
   });
   
   // Subcategories only
   const [subcategories, setSubcategories] = useState<SubCategory[]>([]);
   const [loadingSubcategories, setLoadingSubcategories] = useState(true);
   
-  // Image previews
+  // Image previews and management
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [existingImages, setExistingImages] = useState<ProductImage[]>([]);
-  const [imagesToDelete, setImagesToDelete] = useState<number[]>([]);
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
+  const [deletedImageUrls, setDeletedImageUrls] = useState<string[]>([]);
 
   useEffect(() => {
     if (id) {
@@ -75,20 +92,37 @@ export default function EditProduct() {
 
   const fetchProduct = async (productId: number) => {
     try {
-      const response = await fetch(config.PRODUCT_DETAIL(productId));
+      const response = await fetch(config.PRODUCT_DETAIL_ADMIN(productId));
       if (response.ok) {
         const result = await response.json();
+        console.log('Product details response:', result);
         if (result.status === 1) {
           const productData = result.data;
           setProduct(productData);
-          setFormData({
+          
+          // Get image URLs from product_images array (array of strings)
+          const imageUrls = productData.product_images || [];
+          console.log('Product images from API:', imageUrls);
+          setExistingImageUrls(imageUrls);
+          
+          const initialFormData = {
             product_name: productData.product_name,
             product_price: productData.product_price.toString(),
+            product_full_price: productData.product_full_price?.toString() || '', // Optional original/full price
             product_description: productData.product_description || '',
             sub_category_id: productData.sub_category_id.toString(),
-            files: []
-          });
-          setExistingImages(productData.images || []);
+            stock: productData.stock?.toString() || '',
+            files: [],
+            // Optional shipping fields
+            weight: productData.weight?.toString() || '',
+            length: productData.length?.toString() || '',
+            width: productData.width?.toString() || '',
+            height: productData.height?.toString() || '',
+            origin_location: productData.origin_location || ''
+          };
+          
+          setFormData(initialFormData);
+          setOriginalData(initialFormData);
         } else {
           setError('Product not found');
         }
@@ -115,17 +149,63 @@ export default function EditProduct() {
     }
   };
 
+  const handleStockChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Only allow integers (no decimals)
+    if (/^\d*$/.test(value)) {
+      setFormData(prev => ({ ...prev, stock: value }));
+    }
+  };
+
+  const handleFullPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Only allow integers (no decimals)
+    if (/^\d*$/.test(value)) {
+      setFormData(prev => ({ ...prev, product_full_price: value }));
+    }
+  };
+
+  const handleNumericChange = (field: 'weight' | 'length' | 'width' | 'height', value: string) => {
+    // Allow decimal numbers for shipping dimensions
+    if (/^\d*\.?\d*$/.test(value)) {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    
+    // Validate file types and sizes
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const maxSize = 512000; // 500 KB in bytes
+    
+    for (const file of files) {
+      // Check file type
+      if (!validTypes.includes(file.type)) {
+        setError('Please upload only valid image files (JPEG, PNG, GIF, or WebP)');
+        e.target.value = '';
+        return;
+      }
+      // Check file size
+      if (file.size > maxSize) {
+        setError(`Image "${file.name}" is too large. Maximum size is 500 KB. Current size: ${(file.size / 1024).toFixed(2)} KB`);
+        e.target.value = '';
+        return;
+      }
+    }
+    
     const newFiles = [...formData.files, ...files];
     
     // Limit to 10 files total (existing + new)
-    const totalImages = existingImages.length - imagesToDelete.length + newFiles.length;
+    const remainingExistingCount = existingImageUrls.length - deletedImageUrls.length;
+    const totalImages = remainingExistingCount + newFiles.length;
     if (totalImages > 10) {
-      setError('Maximum 10 images allowed');
+      setError('Maximum 10 images allowed (including existing images)');
+      e.target.value = '';
       return;
     }
     
+    setError(''); // Clear any previous errors
     setFormData(prev => ({ ...prev, files: newFiles }));
     
     // Create previews
@@ -141,12 +221,12 @@ export default function EditProduct() {
     setImagePreviews(newPreviews);
   };
 
-  const removeExistingImage = (imageId: number) => {
-    setImagesToDelete(prev => [...prev, imageId]);
+  const removeExistingImage = (imageUrl: string) => {
+    setDeletedImageUrls(prev => [...prev, imageUrl]);
   };
 
-  const restoreExistingImage = (imageId: number) => {
-    setImagesToDelete(prev => prev.filter(id => id !== imageId));
+  const restoreExistingImage = (imageUrl: string) => {
+    setDeletedImageUrls(prev => prev.filter(url => url !== imageUrl));
   };
 
   const validateForm = (): boolean => {
@@ -160,6 +240,11 @@ export default function EditProduct() {
     }
     if (isNaN(parseInt(formData.product_price)) || parseInt(formData.product_price) <= 0) {
       setError('Product price must be a valid positive integer');
+      return false;
+    }
+    // Stock is optional, but if provided, it must be valid
+    if (formData.stock.trim() && (isNaN(parseInt(formData.stock)) || parseInt(formData.stock) < 0)) {
+      setError('Stock must be a valid non-negative integer');
       return false;
     }
     if (!formData.sub_category_id) {
@@ -180,25 +265,70 @@ export default function EditProduct() {
     
     try {
       const formDataToSend = new FormData();
-      formDataToSend.append('product_name', formData.product_name);
-      formDataToSend.append('product_price', parseInt(formData.product_price).toString());
-      formDataToSend.append('product_description', formData.product_description);
-      if (formData.sub_category_id) {
-        formDataToSend.append('sub_category_id', formData.sub_category_id);
+      
+      // Only append changed fields
+      if (originalData) {
+        if (formData.product_name !== originalData.product_name) {
+          formDataToSend.append('product_name', formData.product_name);
+        }
+        if (formData.product_price !== originalData.product_price) {
+          formDataToSend.append('product_price', parseInt(formData.product_price).toString());
+        }
+        // Full price is optional - send if changed
+        if (formData.product_full_price !== originalData.product_full_price) {
+          if (formData.product_full_price.trim()) {
+            formDataToSend.append('product_full_price', parseInt(formData.product_full_price).toString());
+          }
+        }
+        if (formData.product_description !== originalData.product_description) {
+          formDataToSend.append('product_description', formData.product_description);
+        }
+        if (formData.stock !== originalData.stock) {
+          if (formData.stock.trim()) {
+            formDataToSend.append('stock', parseInt(formData.stock).toString());
+          }
+        }
+        if (formData.sub_category_id !== originalData.sub_category_id) {
+          formDataToSend.append('sub_category_id', formData.sub_category_id);
+        }
+        
+        // Check optional shipping fields
+        if (formData.weight !== originalData.weight && formData.weight.trim()) {
+          formDataToSend.append('weight', formData.weight);
+        }
+        if (formData.length !== originalData.length && formData.length.trim()) {
+          formDataToSend.append('length', formData.length);
+        }
+        if (formData.width !== originalData.width && formData.width.trim()) {
+          formDataToSend.append('width', formData.width);
+        }
+        if (formData.height !== originalData.height && formData.height.trim()) {
+          formDataToSend.append('height', formData.height);
+        }
+        if (formData.origin_location !== originalData.origin_location && formData.origin_location.trim()) {
+          formDataToSend.append('origin_location', formData.origin_location);
+        }
       }
       
-      // Append new files
-      formData.files.forEach(file => {
-        formDataToSend.append('files', file);
+      // Handle images: send remaining images (non-deleted) as existing_images
+      const remainingImages = existingImageUrls.filter(url => !deletedImageUrls.includes(url));
+      
+      // ALWAYS send existing_images to prevent images from being lost
+      formDataToSend.append('existing_images', JSON.stringify(remainingImages));
+      console.log('Sending existing_images:', remainingImages);
+      
+      // Append new files to upload
+      formData.files.forEach((file, index) => {
+        console.log(`Appending new file ${index}:`, {
+          name: file.name,
+          size: file.size,
+          type: file.type
+        });
+        formDataToSend.append('files', file, file.name);
       });
       
-      // Append images to delete
-      imagesToDelete.forEach(imageId => {
-        formDataToSend.append('images_to_delete', imageId.toString());
-      });
-      
-      const response = await fetch(config.PRODUCTS + `/${id}`, {
-        method: 'PUT',
+      const response = await fetch(config.PRODUCT_UPDATE(id!), {
+        method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${user?.token}`
         },
@@ -209,10 +339,12 @@ export default function EditProduct() {
         const result = await response.json();
         if (result.status === 1) {
           setSuccess('Product updated successfully!');
-          // Navigate back to admin dashboard after 2 seconds
+          // Scroll to top to show success message
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          // Go back to the previous page after showing message
           setTimeout(() => {
-            navigate('/admin');
-          }, 2000);
+            navigate(-1);
+          }, 1500);
         } else {
           setError(result.message || 'Failed to update product');
         }
@@ -250,7 +382,7 @@ export default function EditProduct() {
     );
   }
 
-  const remainingImages = existingImages.filter(img => !imagesToDelete.includes(img.id));
+  const remainingImages = existingImageUrls.filter(url => !deletedImageUrls.includes(url));
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -294,17 +426,42 @@ export default function EditProduct() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="product_price">Price * (Integer only)</Label>
+                  <Label htmlFor="product_price">Selling Price * (Integer only)</Label>
                   <Input
                     id="product_price"
-                    type="number"
-                    min="1"
+                    type="text"
+                    inputMode="numeric"
                     value={formData.product_price}
                     onChange={handlePriceChange}
-                    placeholder="Enter price (e.g., 100)"
+                    placeholder="Enter selling price (e.g., 100)"
                     required
                   />
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="product_full_price">Original/Full Price (Optional - Integer only)</Label>
+                  <Input
+                    id="product_full_price"
+                    type="text"
+                    inputMode="numeric"
+                    value={formData.product_full_price}
+                    onChange={handleFullPriceChange}
+                    placeholder="Enter original price (e.g., 150)"
+                  />
+                  <p className="text-xs text-gray-500">Leave empty if no discount. This shows crossed-out price.</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="stock">Stock (Optional - Integer only)</Label>
+                <Input
+                  id="stock"
+                  type="text"
+                  inputMode="numeric"
+                  value={formData.stock}
+                  onChange={handleStockChange}
+                  placeholder="Enter stock quantity (e.g., 50)"
+                />
               </div>
 
               <div className="space-y-2">
@@ -318,6 +475,79 @@ export default function EditProduct() {
                 />
               </div>
 
+              {/* Shipping Information Section */}
+              <div className="space-y-4">
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Shipping Information (Optional)</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="weight">Weight (kg)</Label>
+                      <Input
+                        id="weight"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.weight}
+                        onChange={(e) => handleNumericChange('weight', e.target.value)}
+                        placeholder="e.g., 1.5"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="origin_location">Origin Location</Label>
+                      <Input
+                        id="origin_location"
+                        value={formData.origin_location}
+                        onChange={(e) => handleInputChange('origin_location', e.target.value)}
+                        placeholder="e.g., New York, USA"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="length">Length (cm)</Label>
+                      <Input
+                        id="length"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.length}
+                        onChange={(e) => handleNumericChange('length', e.target.value)}
+                        placeholder="e.g., 25.5"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="width">Width (cm)</Label>
+                      <Input
+                        id="width"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.width}
+                        onChange={(e) => handleNumericChange('width', e.target.value)}
+                        placeholder="e.g., 15.0"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="height">Height (cm)</Label>
+                      <Input
+                        id="height"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.height}
+                        onChange={(e) => handleNumericChange('height', e.target.value)}
+                        placeholder="e.g., 10.5"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label>Subcategory *</Label>
                 <Select 
@@ -327,7 +557,11 @@ export default function EditProduct() {
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select a subcategory" />
                   </SelectTrigger>
-                  <SelectContent className="max-h-[300px] overflow-y-auto z-[9999]">
+                  <SelectContent 
+                    position="popper"
+                    className="max-h-[min(300px,50vh)] overflow-y-auto z-[99999]"
+                    sideOffset={4}
+                  >
                     {subcategories.map((subcategory) => (
                       <SelectItem 
                         key={subcategory.sub_category_id} 
@@ -349,21 +583,21 @@ export default function EditProduct() {
                   <div className="space-y-2">
                     <Label className="text-sm font-medium text-gray-700">Current Images</Label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {remainingImages.map((image) => (
-                        <div key={image.id} className="relative group">
+                      {remainingImages.map((imageUrl, index) => (
+                        <div key={imageUrl} className="relative group">
                           <img
-                            src={`http://localhost:8080${image.image_url}`}
-                            alt={`Product image ${image.id}`}
+                            src={imageUrl.startsWith('http') ? imageUrl : `${config.PRODUCTS_SERVICE_URL}${imageUrl}`}
+                            alt={`Product image ${index + 1}`}
                             className="w-full h-32 object-cover rounded-lg border"
                           />
                           <button
                             type="button"
-                            onClick={() => removeExistingImage(image.id)}
+                            onClick={() => removeExistingImage(imageUrl)}
                             className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
-                          {image.is_main && (
+                          {index === 0 && (
                             <div className="absolute bottom-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded">
                               Main
                             </div>
@@ -375,29 +609,26 @@ export default function EditProduct() {
                 )}
 
                 {/* Images marked for deletion */}
-                {imagesToDelete.length > 0 && (
+                {deletedImageUrls.length > 0 && (
                   <div className="space-y-2">
                     <Label className="text-sm font-medium text-red-700">Images to be deleted</Label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {imagesToDelete.map((imageId) => {
-                        const image = existingImages.find(img => img.id === imageId);
-                        return image ? (
-                          <div key={imageId} className="relative group opacity-50">
-                            <img
-                              src={`http://localhost:8080${image.image_url}`}
-                              alt={`Product image ${imageId}`}
-                              className="w-full h-32 object-cover rounded-lg border border-red-300"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => restoreExistingImage(imageId)}
-                              className="absolute top-2 right-2 bg-green-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ) : null;
-                      })}
+                      {deletedImageUrls.map((imageUrl, index) => (
+                        <div key={imageUrl} className="relative group opacity-50">
+                          <img
+                            src={imageUrl.startsWith('http') ? imageUrl : `${config.PRODUCTS_SERVICE_URL}${imageUrl}`}
+                            alt={`Deleted image ${index + 1}`}
+                            className="w-full h-32 object-cover rounded-lg border border-red-300"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => restoreExistingImage(imageUrl)}
+                            className="absolute top-2 right-2 bg-green-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -412,14 +643,14 @@ export default function EditProduct() {
                           Upload new images
                         </span>
                         <span className="mt-1 block text-sm text-gray-500">
-                          PNG, JPG, GIF up to 5MB each
+                          JPEG, PNG, GIF, WebP - Max 500 KB each
                         </span>
                       </Label>
                       <Input
                         id="file-upload"
                         type="file"
                         multiple
-                        accept="image/*"
+                        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                         onChange={handleFileChange}
                         className="hidden"
                       />
@@ -439,6 +670,9 @@ export default function EditProduct() {
                             alt={`Preview ${index + 1}`}
                             className="w-full h-32 object-cover rounded-lg border border-green-300"
                           />
+                          <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-2 py-1 rounded-b-lg">
+                            {(formData.files[index].size / 1024).toFixed(2)} KB
+                          </div>
                           <button
                             type="button"
                             onClick={() => removeNewImage(index)}

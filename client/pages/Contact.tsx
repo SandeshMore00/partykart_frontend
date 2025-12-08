@@ -101,14 +101,14 @@ export default function Contact() {
           <div className="space-y-4">
             <div>
               <h3 className="font-semibold text-gray-800 mb-2">Primary Phone</h3>
-              <a href="tel:+918779319669" className="block text-blue-600 hover:text-blue-800 transition-colors">
-                +91 8779319669
+              <a href="tel:+919321575897" className="block text-blue-600 hover:text-blue-800 transition-colors">
+                +91 9321575897
               </a>
             </div>
             <div>
               <h3 className="font-semibold text-gray-800 mb-2">Alternative Phone</h3>
-              <a href="tel:+911234567890" className="block text-blue-600 hover:text-blue-800 transition-colors">
-                +91 1234567890
+              <a href="tel:+919321575661" className="block text-blue-600 hover:text-blue-800 transition-colors">
+                +91 9321575661
               </a>
             </div>
             <div>

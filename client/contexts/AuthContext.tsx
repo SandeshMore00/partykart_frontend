@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import config from '../config';
 
 export interface User {
@@ -16,19 +17,62 @@ interface AuthContextType {
   isAdmin: () => boolean;
   isSuperAdmin: () => boolean;
   register: (phone_no: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  handleTokenExpiration: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper function to check if JWT token is expired
+function isTokenExpired(token: string): boolean {
+  try {
+    // JWT tokens have 3 parts separated by dots: header.payload.signature
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return true; // Invalid token format
+    }
+
+    // Decode the payload (second part)
+    const payload = JSON.parse(atob(parts[1]));
+    
+    // Check if exp field exists
+    if (!payload.exp) {
+      // If no expiration field, consider it valid (some tokens don't have exp)
+      // But better to be safe and check with server
+      return false;
+    }
+
+    // exp is in seconds, Date.now() is in milliseconds
+    const currentTime = Math.floor(Date.now() / 1000);
+    
+    // Add a small buffer (5 seconds) to account for clock skew
+    return payload.exp < (currentTime + 5);
+  } catch (error) {
+    console.error('Error checking token expiration:', error);
+    // If we can't decode the token, consider it expired
+    return true;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
-  // Load user from localStorage on mount
+  // Load user from localStorage on mount and check token validity
   useEffect(() => {
     const savedUser = localStorage.getItem('partykart-user');
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser));
+        const parsedUser = JSON.parse(savedUser);
+        
+        // Check if token is expired
+        if (parsedUser.token && isTokenExpired(parsedUser.token)) {
+          console.log('Token expired on load, logging out...');
+          // Token is expired, clear the user data
+          localStorage.removeItem('partykart-user');
+          setUser(null);
+        } else {
+          // Token is still valid, set the user
+          setUser(parsedUser);
+        }
       } catch (error) {
         console.error('Error loading user from localStorage:', error);
         localStorage.removeItem('partykart-user');
@@ -80,6 +124,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const handleTokenExpiration = () => {
+    // Clear user data
+    setUser(null);
+    localStorage.removeItem('partykart-user');
+    // Redirect to home page
+    window.location.href = '/';
+  };
+
   const isAdmin = () => {
     return user?.role_id === 2;
   };
@@ -118,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAdmin,
       isSuperAdmin,
       register,
+      handleTokenExpiration,
     }}>
       {children}
     </AuthContext.Provider>

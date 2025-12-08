@@ -1,8 +1,9 @@
-import { Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function Cart() {
   const { items, updateQuantity, removeFromCart, getTotalPrice, clearCart } = useCart();
@@ -14,6 +15,17 @@ export default function Cart() {
       alert('Please login to proceed with checkout');
       return;
     }
+    
+    // Check if any items are out of stock
+    const outOfStockItems = items.filter(item => 
+      item.available_stock !== undefined && item.available_stock === 0
+    );
+    
+    if (outOfStockItems.length > 0) {
+      alert(`Some items in your cart are out of stock: ${outOfStockItems.map(i => i.name).join(', ')}. Please remove them to continue.`);
+      return;
+    }
+    
     navigate('/checkout');
   };
 
@@ -42,50 +54,75 @@ export default function Cart() {
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Cart Items */}
         <div className="lg:col-span-2 space-y-4">
-          {items.map((item) => (
-            <div key={item.id} className="bg-white rounded-lg shadow-md p-6 border border-gray-100">
-              <div className="flex items-center space-x-4">
-                <img
-                  src={item.image}
-                  alt={item.name}
-                  className="w-20 h-20 object-cover rounded-lg"
-                />
-                
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-800">{item.name}</h3>
-                  <p className="text-gray-600">${item.price.toFixed(2)}</p>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                    className="p-1 text-gray-500 hover:text-gray-700"
-                  >
-                    <Minus className="w-4 h-4" />
-                  </button>
+          {items.map((item) => {
+            const stock = item.available_stock;
+            const isLowStock = stock !== undefined && stock <= 5 && stock > 0;
+            const isOutOfStock = stock !== undefined && stock === 0;
+            const isAtMaxStock = stock !== undefined && item.quantity >= stock;
+            
+            return (
+              <div key={item.id} className="bg-white rounded-lg shadow-md p-6 border border-gray-100">
+                <div className="flex items-center space-x-4">
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="w-20 h-20 object-cover rounded-lg"
+                  />
                   
-                  <span className="w-8 text-center font-medium">{item.quantity}</span>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-800">{item.name}</h3>
+                    <p className="text-gray-600">₹{item.price.toFixed(2)}</p>
+                    
+                    {/* Stock warnings */}
+                    {isOutOfStock && (
+                      <p className="text-red-600 text-sm font-medium mt-1">Out of stock</p>
+                    )}
+                    {isLowStock && (
+                      <p className="text-orange-600 text-sm font-medium mt-1">
+                        Only {stock} left in stock!
+                      </p>
+                    )}
+                    {isAtMaxStock && !isOutOfStock && (
+                      <p className="text-orange-600 text-sm mt-1">
+                        Maximum available quantity in cart
+                      </p>
+                    )}
+                  </div>
                   
-                  <button
-                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                    className="p-1 text-gray-500 hover:text-gray-700"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-                
-                <div className="text-right">
-                  <p className="font-semibold">${(item.price * item.quantity).toFixed(2)}</p>
-                  <button
-                    onClick={() => removeFromCart(item.id)}
-                    className="text-red-500 hover:text-red-700 mt-2"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                      className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isOutOfStock}
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    
+                    <span className="w-8 text-center font-medium">{item.quantity}</span>
+                    
+                    <button
+                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                      className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isAtMaxStock || isOutOfStock}
+                      title={isAtMaxStock ? `Only ${stock} available` : ''}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  <div className="text-right">
+                    <p className="font-semibold">₹{(item.price * item.quantity).toFixed(2)}</p>
+                    <button
+                      onClick={() => removeFromCart(item.id)}
+                      className="text-red-500 hover:text-red-700 mt-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         
         {/* Order Summary */}
@@ -95,7 +132,7 @@ export default function Cart() {
           <div className="space-y-3 mb-6">
             <div className="flex justify-between">
               <span>Subtotal</span>
-              <span>${getTotalPrice().toFixed(2)}</span>
+              <span>₹{getTotalPrice().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="flex justify-between">
               <span>Shipping</span>
@@ -104,7 +141,7 @@ export default function Cart() {
             <hr />
             <div className="flex justify-between font-semibold text-lg">
               <span>Total</span>
-              <span>${getTotalPrice().toFixed(2)}</span>
+              <span>₹{getTotalPrice().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
           </div>
           

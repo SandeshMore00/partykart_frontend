@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { ArrowLeft, ArrowRight, Plus, Trash2, Upload, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Plus, Trash2, Upload, X, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import config from '../config';
@@ -26,6 +26,7 @@ const DashboardCarousel: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imageOrder, setImageOrder] = useState(1);
+  const [showFullScreen, setShowFullScreen] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Preload image
@@ -142,8 +143,7 @@ const DashboardCarousel: React.FC = () => {
     if (!confirm('Are you sure you want to delete this dashboard image?')) return;
 
     try {
-      // const response = await fetch(`http://localhost:9004/v1/products/delete/dashboard-image/${imageId}`, {
-      const response = await fetch(`${config.PRODUCTS_SERVICE_URL}/v1/products/delete/dashboard-image/${imageId}`, {
+      const response = await fetch(config.PRODUCT_DASHBOARD_IMAGE_DELETE(imageId), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${user.token}`,
@@ -199,24 +199,44 @@ const DashboardCarousel: React.FC = () => {
     );
   }
 
-  if (!images.length) {
-    return (
-      <div className="w-full h-64 flex flex-col items-center justify-center bg-gray-100 rounded-lg text-gray-500">
-        <div className="text-4xl mb-2">🖼️</div>
-        <div className="text-lg font-semibold mb-1">No Dashboard Images</div>
-        <div className="text-sm">Images will appear here when they are added to the dashboard.</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="relative w-full max-w-3xl mx-auto aspect-[16/7] rounded-lg overflow-hidden shadow-lg">
-      <img
-        src={images[current].dashboard_image_link}
-        alt={`Dashboard ${current + 1}`}
-        className="w-full h-full object-cover transition-all duration-700"
-        style={{ minHeight: '300px' }}
-      />
+    <>
+      {/* Main Content */}
+      {!images.length ? (
+        <div className="w-full h-64 flex flex-col items-center justify-center bg-gray-100 rounded-lg text-gray-500">
+          <div className="text-4xl mb-2">🖼️</div>
+          <div className="text-lg font-semibold mb-1">No Dashboard Images</div>
+          <div className="text-sm mb-4">Images will appear here when they are added to the dashboard.</div>
+          {(isAdmin() || isSuperAdmin()) && (
+            <Button
+              onClick={() => setShowUploadModal(true)}
+              className="bg-pink-500 hover:bg-pink-600 text-white"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Dashboard Image
+            </Button>
+          )}
+        </div>
+      ) : (
+    <div className="relative w-full max-w-6xl mx-auto rounded-lg overflow-hidden shadow-lg bg-gray-50">
+      {/* Responsive container with 16:9 aspect ratio */}
+      <div className="relative w-full aspect-[16/9]">
+        <img
+          src={images[current].dashboard_image_link}
+          alt={`Dashboard ${current + 1}`}
+          className="w-full h-full object-contain transition-all duration-700 cursor-pointer"
+          onClick={() => setShowFullScreen(true)}
+        />
+      </div>
+      
+      {/* Full Screen Toggle Button */}
+      <button
+        className="absolute bottom-4 right-4 bg-white/80 rounded-full p-2 shadow hover:bg-white z-10"
+        onClick={() => setShowFullScreen(true)}
+        aria-label="View fullscreen"
+      >
+        <Maximize2 className="w-5 h-5 text-pink-500" />
+      </button>
       
       {/* Admin Controls
       {isAdmin && (
@@ -306,10 +326,87 @@ const DashboardCarousel: React.FC = () => {
         ))}
       </div>
 
-      {/* Upload Modal */}
+      {/* Full Screen Modal */}
+      {showFullScreen && (
+        <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-[9999] p-4">
+          <button
+            className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 rounded-full p-3 shadow-lg z-50"
+            onClick={() => setShowFullScreen(false)}
+            aria-label="Close fullscreen"
+          >
+            <X className="w-6 h-6 text-white" />
+          </button>
+
+          {/* Previous button */}
+          {images.length > 1 && (
+            <button
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 rounded-full p-3 shadow-lg z-50 transition-all"
+              onClick={prev}
+              aria-label="Previous image"
+            >
+              <ArrowLeft className="w-6 h-6 text-white" />
+            </button>
+          )}
+
+          {/* Main Image */}
+          <div className="relative max-w-7xl max-h-full w-full h-full flex items-center justify-center">
+            <img
+              src={images[current].dashboard_image_link}
+              alt={`Dashboard ${current + 1}`}
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            />
+            
+            {/* Image counter */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-full text-sm">
+              {current + 1} / {images.length}
+            </div>
+          </div>
+
+          {/* Next button */}
+          {images.length > 1 && (
+            <button
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 rounded-full p-3 shadow-lg z-50 transition-all"
+              onClick={next}
+              aria-label="Next image"
+            >
+              <ArrowRight className="w-6 h-6 text-white" />
+            </button>
+          )}
+
+          {/* Thumbnails */}
+          {images.length > 1 && (
+            <div className="absolute bottom-20 left-0 right-0 flex justify-center space-x-2 overflow-x-auto px-4 max-w-full">
+              <div className="flex space-x-2">
+                {images.map((img, idx) => (
+                  <button
+                    key={img.dashboard_image_id}
+                    className={`flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border-2 transition-all ${
+                      current === idx 
+                        ? 'border-pink-500 scale-110' 
+                        : 'border-white/30 hover:border-white/60'
+                    }`}
+                    onClick={() => goTo(idx)}
+                    aria-label={`Go to image ${idx + 1}`}
+                  >
+                    <img
+                      src={img.dashboard_image_link}
+                      alt={`Thumbnail ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+      )}
+
+      {/* Upload Modal - Always available for admins */}
       {showUploadModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Upload Dashboard Image</h3>
               <Button
@@ -343,16 +440,51 @@ const DashboardCarousel: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Select Image
                 </label>
+                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-800">
+                  <p className="font-semibold mb-1">📐 Recommended Dimensions:</p>
+                  <p>• <strong>Dashboard Images:</strong> 1920×1080px (16:9 ratio)</p>
+                  <p>• <strong>Alternative:</strong> 1600×900px or 1280×720px</p>
+                  <p className="mt-2 font-semibold">✅ Best Practices:</p>
+                  <p>• Use 16:9 aspect ratio (width:height)</p>
+                  <p>• Max file size: 1 MB</p>
+                  <p>• Format: JPEG, PNG, WebP</p>
+                </div>
                 <input
                   type="file"
-                  accept="image/*"
-                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      // Validate file type
+                      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                      if (!validTypes.includes(file.type)) {
+                        alert('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
+                        e.target.value = '';
+                        return;
+                      }
+                      // Validate file size (1 MB = 1048576 bytes)
+                      if (file.size > 1048576) {
+                        alert('Image size must be less than 1 MB');
+                        e.target.value = '';
+                        return;
+                      }
+                      setSelectedFile(file);
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
                 />
                 {selectedFile && (
-                  <p className="text-sm text-gray-500 mt-1">
-                    Selected: {selectedFile.name}
-                  </p>
+                  <div className="text-sm mt-1 space-y-1">
+                    <p className="text-gray-700">
+                      Selected: {selectedFile.name}
+                    </p>
+                    <p className="text-gray-500">
+                      Size: {(selectedFile.size / 1024).toFixed(2)} KB
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      Maximum size: 1 MB (1024 KB) for optimal performance
+                    </p>
+                  </div>
                 )}
               </div>
               
@@ -389,7 +521,7 @@ const DashboardCarousel: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 

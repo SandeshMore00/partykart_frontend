@@ -9,6 +9,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
+import { TokenExpirationHandler } from "@/components/TokenExpirationHandler";
+import AutoRefreshHandler from "@/components/AutoRefreshHandler";
 import Index from "./pages/Index";
 import PrivacyPolicy from "./pages/policy/PrivacyPolicy";
 import TermsOfService from "./pages/policy/TermsOfService";
@@ -42,6 +44,8 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <TokenExpirationHandler />
+            <AutoRefreshHandler />
             <Routes>
               <Route path="/" element={<Layout />}>
                 <Route index element={<Index />} />
@@ -59,7 +63,7 @@ const App = () => (
                 <Route path="categories/:categoryId" element={<SubcategoriesPage />} />
                 <Route path="offers" element={<Offers />} />
                 <Route path="orders" element={<OrderList />} />
-                <Route path="order/:orderAlertId" element={<OrderDetailPage />} />
+                <Route path="order/:orderId" element={<OrderDetailPage />} />
 
                 {/* Policy routes */}
                 <Route path="policy/privacy" element={<PrivacyPolicy />} />

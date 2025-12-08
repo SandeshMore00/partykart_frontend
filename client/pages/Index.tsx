@@ -25,8 +25,10 @@ interface Product {
   product_id: number;
   product_name: string;
   product_price: number;
+  product_full_price?: number;
   product_image: string;
   product_description?: string;
+  stock?: number;
 }
 
 interface ApiResponse {
@@ -69,6 +71,10 @@ export default function Index() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  // Scroll to top on mount for homepage
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
 
   useEffect(() => {
     fetchCategories();
@@ -184,7 +190,8 @@ export default function Index() {
       name: product.product_name,
       price: product.product_price,
       image: product.product_image,
-      description: product.product_description
+      description: product.product_description,
+      available_stock: product.stock
     });
   };
 
@@ -217,19 +224,48 @@ export default function Index() {
             {products.map((product) => (
               <div key={product.product_id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
                 <div onClick={() => navigate(`/product/${product.product_id}`)}>
-                  <img
-                    src={product.product_image}
-                    alt={product.product_name}
-                    className="w-full h-48 object-cover"
-                  />
+                  {/* Responsive product image with 4:3 aspect ratio */}
+                  <div className="w-full aspect-[4/3] bg-gray-50 flex items-center justify-center overflow-hidden">
+                    <img
+                      src={product.product_image}
+                      alt={product.product_name}
+                      className="w-full h-full object-contain p-2"
+                    />
+                  </div>
                   <div className="p-4">
                     <h3 className="font-semibold text-gray-800 mb-2">{product.product_name}</h3>
                     <p className="text-gray-600 text-sm mb-3 line-clamp-2">{product.product_description}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-lg font-bold text-pink-600">
-                        ₹{product.product_price.toLocaleString('en-IN')}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        {product.product_full_price && product.product_full_price > product.product_price && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-400 line-through">
+                              ₹{product.product_full_price.toLocaleString('en-IN')}
+                            </span>
+                            <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                              {Math.round(((product.product_full_price - product.product_price) / product.product_full_price) * 100)}% OFF
+                            </span>
+                          </div>
+                        )}
+                        <span className="text-lg font-bold text-pink-600">
+                          ₹{product.product_price.toLocaleString('en-IN')}
+                        </span>
+                      </div>
                     </div>
+                    {product.stock !== undefined && product.stock <= 5 && (
+                      <>
+                        {product.stock > 0 && (
+                          <div className="text-orange-600 text-xs font-semibold mt-2">
+                            Only {product.stock} left in stock!
+                          </div>
+                        )}
+                        {product.stock === 0 && (
+                          <div className="text-red-600 text-xs font-semibold mt-2">
+                            Out of stock
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="px-4 pb-4">
@@ -265,8 +301,8 @@ export default function Index() {
                 <p>Shop no 01, Tilak road, kashyap hall, Opp. ramdas maruti mandir, near Annapurna, Old panvel, district-raigad, pin-410206, maharashtra, INDIA.</p>
                 <p className="flex items-center">
                   <Phone className="w-4 h-4 mr-2 text-pink-500" />
-                  <a href="tel:+918779319669" className="hover:text-pink-600" style={{ wordBreak: 'break-all' }}>
-                    +91 8779319669
+                  <a href="tel:+919321575897" className="hover:text-pink-600" style={{ wordBreak: 'break-all' }}>
+                    +91 9321575897
                   </a>
                 </p>
                 <p className="flex items-center">

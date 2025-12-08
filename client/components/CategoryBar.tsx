@@ -291,6 +291,7 @@ export default function CategoryBar() {
     }
   };
 
+  // Click-away handler for desktop
   useEffect(() => {
     if (!activeCategory || isMobile) return;
     const handleClickAway = (e: MouseEvent) => {
@@ -304,8 +305,52 @@ export default function CategoryBar() {
     return () => document.removeEventListener('mousedown', handleClickAway);
   }, [activeCategory, isMobile]);
 
+  // Close dropdown on scroll or touch
+  useEffect(() => {
+    const closeDropdown = () => {
+      if (activeCategory || hoveredCategory) {
+        setActiveCategory(null);
+        setHoveredCategory(null);
+        setSubcategories([]);
+        setDropdownHovered(false);
+        setCategoryHovered(false);
+      }
+    };
+
+    // Scroll handler
+    const handleScroll = () => {
+      closeDropdown();
+    };
+
+    // Touch handler for mobile
+    const handleTouchMove = () => {
+      closeDropdown();
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [activeCategory, hoveredCategory]);
+
   const handleSubcategoryClick = (id: number, name: string) => {
+    // Close dropdown first
+    setActiveCategory(null);
+    setHoveredCategory(null);
+    setSubcategories([]);
+    setDropdownHovered(false);
+    setCategoryHovered(false);
+    
+    // Navigate to the products page
     navigate(`/products/subcategory/${id}?name=${encodeURIComponent(name)}`);
+    
+    // Auto-scroll to show products after a short delay (to allow page to load)
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
   };
 
   if (loading) {
@@ -323,13 +368,13 @@ export default function CategoryBar() {
   if (categories.length === 0) return null;
 
   return (
-    <div className="bg-white border-b border-gray-100 shadow-sm w-full z-30 relative top-0 mt-[128px]">
+    <div className="bg-white border-b border-gray-100 shadow-sm w-full z-30 relative top-0 mt-[120px]">
       <div className="container mx-auto px-2 sm:px-4">
-        {/* ✅ mobile grid (3 per row), desktop flex row */}
+        {/* ✅ mobile grid (2-3 per row), desktop flex row */}
         <div
           className={`${
             isMobile
-              ? 'grid grid-cols-3 gap-2 py-2'
+              ? 'grid grid-cols-2 xs:grid-cols-3 gap-2 py-2'
               : 'flex flex-wrap items-center py-2 sm:py-3 gap-1 sm:gap-2 md:gap-4 lg:gap-6'
           }`}
         >
@@ -345,13 +390,16 @@ export default function CategoryBar() {
                   w-full px-2 sm:px-3 py-1.5 sm:py-2 
                   text-xs sm:text-sm md:text-base text-gray-700 
                   hover:text-pink-600 hover:bg-pink-50 rounded-lg 
-                  transition-all duration-200 whitespace-nowrap group
+                  transition-all duration-200 group
+                  ${isMobile ? 'flex-col space-x-0 space-y-0.5' : 'whitespace-nowrap'}
                   ${activeCategory === category.category_id ? 'bg-pink-100 text-pink-600' : ''}`}
                 onClick={() => handleCategoryClick(category.category_id)}
               >
-                <span className="font-medium">{category.category_name}</span>
+                <span className={`font-medium text-center ${isMobile ? 'truncate w-full' : ''}`} title={category.category_name}>
+                  {category.category_name}
+                </span>
                 <ChevronDown
-                  className={`w-3 h-3 sm:w-4 sm:h-4 transform transition-transform duration-200 
+                  className={`w-3 h-3 sm:w-4 sm:h-4 transform transition-transform duration-200 flex-shrink-0
                   ${activeCategory === category.category_id ? 'rotate-180' : ''}`}
                 />
               </button>

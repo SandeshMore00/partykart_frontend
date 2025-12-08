@@ -409,15 +409,18 @@ import {
   ShoppingCart,
   Heart,
   Share2,
+  Edit,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
 import config from '../config';
 
 interface Product {
   product_id: number;
   product_name: string;
   product_price: number;
+  product_full_price?: number;
   product_description: string;
   product_image?: string | string[];
   product_images?: string[]; // Multiple images support
@@ -444,11 +447,19 @@ export default function ProductDetail() {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [showFullDescription, setShowFullDescription] = useState(false);
   const { addToCart } = useCart();
+  const { isAdmin, isSuperAdmin } = useAuth();
 
   useEffect(() => {
     if (id) {
       fetchProduct(parseInt(id));
+      // Auto-scroll on mobile to skip blank header space and show product properly
+      if (window.innerWidth < 768) {
+        setTimeout(() => {
+          window.scrollTo({ top: 220, behavior: 'smooth' });
+        }, 100);
+      }
     }
   }, [id]);
 
@@ -473,19 +484,31 @@ export default function ProductDetail() {
 
   const handleAddToCart = () => {
     if (!product) return;
-    for (let i = 0; i < quantity; i++) {
-      addToCart({
-        id: product.product_id,
-        name: product.product_name,
-        price: product.product_price,
-        image: getMainImage(),
-        description: product.product_description,
-      });
+    
+    const result = addToCart({
+      id: product.product_id,
+      name: product.product_name,
+      price: product.product_price,
+      image: getMainImage(),
+      description: product.product_description,
+      available_stock: product.stock,
+    }, quantity);
+    
+    if (result.success) {
+      setQuantity(1);
     }
-    setQuantity(1);
   };
 
-  const incrementQuantity = () => setQuantity((prev) => prev + 1);
+  const incrementQuantity = () => {
+    setQuantity((prev) => {
+      const stock = product?.stock;
+      if (stock !== undefined && prev >= stock) {
+        return prev; // Don't increment beyond stock
+      }
+      return prev + 1;
+    });
+  };
+  
   const decrementQuantity = () => setQuantity((prev) => Math.max(1, prev - 1));
 
   const handleShare = async () => {
@@ -548,17 +571,31 @@ export default function ProductDetail() {
     );
   }
 
+  const canEdit = isAdmin() || isSuperAdmin();
+
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Back Button */}
-      <Button
-        variant="ghost"
-        onClick={() => navigate(-1)}
-        className="mb-6 flex items-center space-x-2"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        <span>Back</span>
-      </Button>
+      {/* Header with Back and Edit buttons */}
+      <div className="flex items-center justify-between mb-6">
+        <Button
+          variant="ghost"
+          onClick={() => navigate(-1)}
+          className="flex items-center space-x-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back</span>
+        </Button>
+        
+        {canEdit && (
+          <Button
+            onClick={() => navigate(`/admin/edit-product/${product.product_id}`)}
+            className="bg-pink-500 hover:bg-pink-600 flex items-center space-x-2"
+          >
+            <Edit className="w-4 h-4" />
+            <span>Edit Product</span>
+          </Button>
+        )}
+      </div>
 
       <div className="grid lg:grid-cols-2 gap-12">
         {/* Product Images */}
@@ -686,34 +723,57 @@ export default function ProductDetail() {
               )}
             </div>
 
-            <div className="text-3xl font-bold text-pink-600 mb-4">
-              ₹
-              {product.product_price.toLocaleString('en-IN', {
-                minimumFractionDigits: 2,
-              })}
+            <div className="mb-4">
+              {product.product_full_price && product.product_full_price > product.product_price && (
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-xl text-gray-400 line-through">
+                    ₹{product.product_full_price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                  <span className="text-sm font-semibold text-green-600 bg-green-50 px-3 py-1 rounded">
+                    {Math.round(((product.product_full_price - product.product_price) / product.product_full_price) * 100)}% OFF
+                  </span>
+                </div>
+              )}
+              <div className="text-3xl font-bold text-pink-600">
+                ₹{product.product_price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </div>
             </div>
           </div>
 
           {/* Description */}
           <div>
             <h3 className="text-lg font-semibold mb-2">Description</h3>
-            <p className="text-gray-600 leading-relaxed">
-              {product.product_description}
-            </p>
+            <div className="relative">
+              <p 
+                className={`text-gray-600 leading-relaxed ${
+                  !showFullDescription ? 'line-clamp-5' : ''
+                }`}
+              >
+                {product.product_description}
+              </p>
+              {product.product_description && product.product_description.length > 300 && (
+                <button
+                  onClick={() => setShowFullDescription(!showFullDescription)}
+                  className="mt-2 text-pink-600 hover:text-pink-700 font-medium text-sm focus:outline-none"
+                >
+                  {showFullDescription ? 'Show Less' : 'Show More'}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Stock */}
-          {product.stock !== undefined && (
+          {product.stock !== undefined && product.stock <= 5 && (
             <div className="flex items-center space-x-2">
               <span className="font-medium">Availability:</span>
               <span
                 className={
-                  product.stock > 0 ? 'text-green-600' : 'text-red-600'
+                  product.stock === 0 ? 'text-red-600' : 'text-orange-600 font-semibold'
                 }
               >
-                {product.stock > 0
-                  ? `${product.stock} in stock`
-                  : 'Out of stock'}
+                {product.stock === 0
+                  ? 'Out of stock'
+                  : `Only ${product.stock} left in stock!`}
               </span>
             </div>
           )}
@@ -725,7 +785,8 @@ export default function ProductDetail() {
               <div className="flex items-center border border-gray-300 rounded-lg">
                 <button
                   onClick={decrementQuantity}
-                  className="p-2 hover:bg-gray-100"
+                  className="p-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={quantity <= 1 || product.stock === 0}
                 >
                   <Minus className="w-4 h-4" />
                 </button>
@@ -734,11 +795,25 @@ export default function ProductDetail() {
                 </span>
                 <button
                   onClick={incrementQuantity}
-                  className="p-2 hover:bg-gray-100"
+                  className="p-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={
+                    product.stock !== undefined && 
+                    (quantity >= product.stock || product.stock === 0)
+                  }
+                  title={
+                    product.stock !== undefined && quantity >= product.stock
+                      ? `Maximum ${product.stock} available`
+                      : ''
+                  }
                 >
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
+              {product.stock !== undefined && quantity >= product.stock && product.stock > 0 && (
+                <span className="text-sm text-orange-600">
+                  Max quantity reached
+                </span>
+              )}
             </div>
 
             <div className="flex space-x-4">
