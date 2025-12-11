@@ -348,4 +348,5 @@ export default {
   // ---- BigShip Integration ----
   BIGSHIP_CREATE_ORDER: `${BASE_URL}/v1/bigship/order/create`,
   BIGSHIP_MANIFEST: `${BASE_URL}/v1/bigship/order/manifest`,
+  BIGSHIP_CALCULATE_RATES: `${BASE_URL}/v1/bigship/calculate-rates`,
 };

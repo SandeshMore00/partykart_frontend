@@ -134,22 +134,23 @@ export default function Cart() {
               <span>Subtotal</span>
               <span>₹{getTotalPrice().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span>Shipping</span>
-              <span>Free</span>
+              <span className="text-sm text-gray-500 italic">Calculated at checkout</span>
             </div>
             <hr />
             <div className="flex justify-between font-semibold text-lg">
               <span>Total</span>
               <span>₹{getTotalPrice().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
+            <p className="text-xs text-gray-500 text-center">* Shipping charges will be calculated at checkout</p>
           </div>
           
           <Button
             onClick={handleCheckout}
             className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 mb-3"
           >
-            Proceed to Checkout
+            Proceed to Checkout for Shipping Rate
           </Button>
           
           <Button
