@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Truck, Zap, DollarSign, Clock, Package, CheckCircle2 } from 'lucide-react';
+import { Zap, DollarSign, CheckCircle2 } from 'lucide-react';
 import config from '../config';
 
 // Shipping rate interface
@@ -147,7 +147,8 @@ export default function Checkout() {
   const finalTotal = getTotalPrice() + shippingCost;
 
   // Check if address is complete
-  const isAddressComplete = address.fullName && address.phone && address.addressLine1 && 
+  const isAddressComplete = address.fullName && address.phone && 
+                            address.addressLine1 && address.addressLine1.trim().length >= 10 &&
                             address.city && address.state && address.pincode;
 
   // Check if payment is selected
@@ -159,7 +160,7 @@ export default function Checkout() {
   // Handle payment method change - calculate shipping rates
   const handlePaymentChange = (method: string) => {
     setPaymentMethod(method);
-    if (isAddressComplete) {
+    if (isAddressComplete && address.pincode && address.pincode.length === 6) {
       // Recalculate shipping rates when payment method changes
       setTimeout(() => {
         calculateShippingRates();
@@ -167,9 +168,32 @@ export default function Checkout() {
     }
   };
 
+  // Auto-calculate shipping rates when pincode is entered and payment method is selected
+  const prevPincodeRef = useRef<string>('');
+  useEffect(() => {
+    const currentPincode = address.pincode || '';
+    if (
+      currentPincode.length === 6 && 
+      currentPincode !== prevPincodeRef.current &&
+      isPaymentSelected && 
+      !shippingRates && 
+      !shippingLoading
+    ) {
+      prevPincodeRef.current = currentPincode;
+      const timer = setTimeout(() => {
+        calculateShippingRates();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [address.pincode, isPaymentSelected]);
+
   const handleOrderConfirm = async () => {
     if (!isAddressComplete) {
-      alert('Please complete the shipping address');
+      if (!address.addressLine1 || address.addressLine1.trim().length < 10) {
+        alert('Address Line 1 is required and must be at least 10 characters');
+      } else {
+        alert('Please complete the shipping address');
+      }
       return;
     }
     if (!isPaymentSelected) {
@@ -183,6 +207,11 @@ export default function Checkout() {
 
     setIsLoading(true);
     try {
+      // Get the selected shipping rate details
+      const selectedShippingRate = selectedShipping === 'cheapest' 
+        ? shippingRates?.cheapest 
+        : shippingRates?.fastest;
+
       const payload = {
         items: items.map(item => ({
           product_id: item.id,
@@ -192,13 +221,26 @@ export default function Checkout() {
         shipping_address: {
           name: address.fullName,
           phone: address.phone,
-          address: address.addressLine2 
-            ? `${address.addressLine1}, ${address.addressLine2}`
-            : address.addressLine1,
+          address: (() => {
+            const line1 = address.addressLine1?.trim() || '';
+            const line2 = address.addressLine2?.trim() || '';
+            return line2 ? `${line1}, ${line2}` : line1;
+          })(),
           city: address.city,
           state: address.state,
           pincode: address.pincode
-        }
+        },
+        shipping_details: selectedShippingRate ? {
+          courier_id: selectedShippingRate.courier_id,
+          courier_name: selectedShippingRate.courier_name,
+          courier_type: selectedShippingRate.courier_type,
+          zone: selectedShippingRate.zone,
+          tat: selectedShippingRate.tat,
+          billable_weight: selectedShippingRate.billable_weight,
+          total_shipping_charges: selectedShippingRate.total_shipping_charges,
+          courier_charge: selectedShippingRate.courier_charge,
+          shipping_option: selectedShipping // 'cheapest' or 'fastest'
+        } : null
       };
 
       const response = await fetch(config.PLACE_ORDER, {
@@ -306,26 +348,49 @@ export default function Checkout() {
             </div>
 
             <div className="mt-4">
-              <Label htmlFor="addressLine1">Address Line 1 *</Label>
+              <Label htmlFor="addressLine1">Address Line 1 * (Min 10, Max 24 characters)</Label>
               <Input
                 id="addressLine1"
                 value={address.addressLine1}
-                onChange={(e) =>
-                  setAddress({ ...address, addressLine1: e.target.value })
-                }
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value.length <= 24) {
+                    setAddress({ ...address, addressLine1: value });
+                  }
+                }}
+                maxLength={24}
                 required
               />
+              {address.addressLine1 && address.addressLine1.trim().length < 10 && (
+                <p className="text-xs text-red-500 mt-1">
+                  Address Line 1 must be at least 10 characters
+                </p>
+              )}
+              {address.addressLine1 && address.addressLine1.length > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {address.addressLine1.length}/24 characters
+                </p>
+              )}
             </div>
 
             <div className="mt-4">
-              <Label htmlFor="addressLine2">Address Line 2 (Optional)</Label>
+              <Label htmlFor="addressLine2">Address Line 2 (Optional, Max 24 characters)</Label>
               <Input
                 id="addressLine2"
                 value={address.addressLine2}
-                onChange={(e) =>
-                  setAddress({ ...address, addressLine2: e.target.value })
-                }
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value.length <= 24) {
+                    setAddress({ ...address, addressLine2: value });
+                  }
+                }}
+                maxLength={24}
               />
+              {address.addressLine2 && address.addressLine2.length > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {address.addressLine2.length}/24 characters
+                </p>
+              )}
             </div>
 
             <div className="grid md:grid-cols-3 gap-4 mt-4">
@@ -362,6 +427,14 @@ export default function Checkout() {
                     setShippingRates(null);
                     setSelectedShipping(null);
                   }}
+                  onBlur={(e) => {
+                    // Auto-calculate shipping rates when pincode is entered and payment method is selected
+                    if (e.target.value && e.target.value.length === 6 && isPaymentSelected) {
+                      setTimeout(() => {
+                        calculateShippingRates();
+                      }, 300);
+                    }
+                  }}
                   required
                 />
               </div>
@@ -378,18 +451,26 @@ export default function Checkout() {
                 )}
               </div>
               
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-amber-800">
+                  Online payment and net banking payment coming soon. You can choose Cash on delivery. Thank you.
+                </p>
+              </div>
+              
               <div className="space-y-3">
                 {[
-                  { id: 'cod', label: 'Cash on Delivery (COD)' },
-                  { id: 'upi', label: 'UPI Payment' },
-                  { id: 'card', label: 'Credit/Debit Card' }
+                  { id: 'cod', label: 'Cash on Delivery (COD)', disabled: false },
+                  { id: 'upi', label: 'UPI Payment', disabled: true },
+                  { id: 'card', label: 'Credit/Debit Card', disabled: true }
                 ].map((method) => (
                   <label 
                     key={method.id} 
-                    className={`flex items-center space-x-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                      paymentMethod === method.id
-                        ? 'border-pink-500 bg-pink-50'
-                        : 'border-gray-200 hover:border-pink-300'
+                    className={`flex items-center space-x-3 p-3 border-2 rounded-lg transition-all ${
+                      method.disabled
+                        ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
+                        : paymentMethod === method.id
+                        ? 'border-pink-500 bg-pink-50 cursor-pointer'
+                        : 'border-gray-200 hover:border-pink-300 cursor-pointer'
                     }`}
                   >
                     <input
@@ -397,9 +478,13 @@ export default function Checkout() {
                       value={method.id}
                       checked={paymentMethod === method.id}
                       onChange={(e) => handlePaymentChange(e.target.value)}
+                      disabled={method.disabled}
                       className="text-pink-500"
                     />
-                    <span>{method.label}</span>
+                    <span className={method.disabled ? 'text-gray-500' : ''}>{method.label}</span>
+                    {method.disabled && (
+                      <span className="ml-auto text-xs text-gray-400">Coming Soon</span>
+                    )}
                   </label>
                 ))}
               </div>
@@ -451,24 +536,9 @@ export default function Checkout() {
                         className="mt-1 text-pink-500"
                       />
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2">
                           <DollarSign className="w-5 h-5 text-green-600" />
                           <span className="font-semibold text-green-600">Cheapest Option</span>
-                        </div>
-                        <h3 className="font-medium text-lg">{shippingRates.cheapest.courier_name}</h3>
-                        <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-600">
-                          <span className="flex items-center gap-1">
-                            <Truck className="w-4 h-4" />
-                            {shippingRates.cheapest.courier_type}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            {shippingRates.cheapest.tat} day(s)
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Package className="w-4 h-4" />
-                            {shippingRates.cheapest.billable_weight} kg
-                          </span>
                         </div>
                       </div>
                       <div className="text-right">
@@ -496,24 +566,9 @@ export default function Checkout() {
                         className="mt-1 text-pink-500"
                       />
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2">
                           <Zap className="w-5 h-5 text-orange-500" />
                           <span className="font-semibold text-orange-500">Fastest Option</span>
-                        </div>
-                        <h3 className="font-medium text-lg">{shippingRates.fastest.courier_name}</h3>
-                        <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-600">
-                          <span className="flex items-center gap-1">
-                            <Truck className="w-4 h-4" />
-                            {shippingRates.fastest.courier_type}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            {shippingRates.fastest.tat} day(s)
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Package className="w-4 h-4" />
-                            {shippingRates.fastest.billable_weight} kg
-                          </span>
                         </div>
                       </div>
                       <div className="text-right">

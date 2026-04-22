@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Grid, List, Filter, SortAsc, Package, Search, X, Edit } from 'lucide-react';
+import { ArrowLeft, Grid, List, Filter, SortAsc, Package, Search, X, Edit, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import config from '../config';
@@ -52,6 +53,27 @@ export default function ProductsBySubcategory() {
   
   const subcategoryName = searchParams.get('name') || 'Products';
 
+  // Add Product Modal states
+  const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [productForm, setProductForm] = useState({
+    product_name: '',
+    product_price: '',
+    product_full_price: '',
+    product_description: '',
+    sub_category_id: '',
+    file: null as File | null,
+    // Optional shipping fields
+    weight: '',
+    length: '',
+    width: '',
+    height: '',
+    origin_location: ''
+  });
+  const [productNameError, setProductNameError] = useState('');
+  const [showValidation, setShowValidation] = useState(false);
+  const [allProductNames, setAllProductNames] = useState<string[]>([]);
+  const [allSubcategories, setAllSubcategories] = useState<Array<{ sub_category_id: number; sub_category_name: string }>>([]);
+
   useEffect(() => {
     if (subCategoryId) {
       fetchProducts(parseInt(subCategoryId), 1);
@@ -65,6 +87,169 @@ export default function ProductsBySubcategory() {
       }
     }
   }, [subCategoryId]);
+
+  // Fetch all product names for duplicate check
+  const fetchAllProductNames = async () => {
+    try {
+      const response = await fetch(config.PRODUCTS, {
+        headers: { 'Authorization': `Bearer ${user?.token}` }
+      });
+      if (response.ok) {
+        const result = await response.json();
+        if (result.status === 1 && result.data) {
+          setAllProductNames(result.data.map((p: any) => p.product_name.toLowerCase()));
+        }
+      }
+    } catch {}
+  };
+
+  // Fetch all subcategories for add product modal
+  const fetchAllSubcategories = async () => {
+    try {
+      const response = await fetch(config.CATEGORY_SUBCATEGORY(), {
+        headers: { 'Authorization': `Bearer ${user?.token}` }
+      });
+      if (response.ok) {
+        const result = await response.json();
+        if (result.status === 1) {
+          setAllSubcategories(result.data || []);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching subcategories:', error);
+      setAllSubcategories([]);
+    }
+  };
+
+  // Open add product modal
+  const openAddProductModal = () => {
+    setShowAddProductModal(true);
+    resetProductForm();
+    setProductNameError('');
+    fetchAllProductNames();
+    fetchAllSubcategories();
+    // Pre-fill subcategory_id with current subcategory
+    if (subCategoryId) {
+      setProductForm(prev => ({ ...prev, sub_category_id: subCategoryId }));
+    }
+  };
+
+  // Reset product form
+  const resetProductForm = () => {
+    setProductForm({
+      product_name: '',
+      product_price: '',
+      product_full_price: '',
+      product_description: '',
+      sub_category_id: subCategoryId || '',
+      file: null,
+      weight: '',
+      length: '',
+      width: '',
+      height: '',
+      origin_location: ''
+    });
+  };
+
+  // Product name duplicate check
+  useEffect(() => {
+    if (!showAddProductModal || !productForm.product_name) {
+      setProductNameError('');
+      return;
+    }
+    if (allProductNames.includes(productForm.product_name.trim().toLowerCase())) {
+      setProductNameError('Product name already exists. Please choose a different name.');
+    } else {
+      setProductNameError('');
+    }
+  }, [productForm.product_name, allProductNames, showAddProductModal]);
+
+  // Price integer validation
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (/^\d*$/.test(value)) {
+      setProductForm({ ...productForm, product_price: value });
+    }
+  };
+
+  // Full price integer validation
+  const handleFullPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (/^\d*$/.test(value)) {
+      setProductForm({ ...productForm, product_full_price: value });
+    }
+  };
+
+  const handleCreateProduct = async () => {
+    if (!productForm.product_name || !productForm.sub_category_id) {
+      setShowValidation(true);
+      return;
+    }
+    if (productNameError) return;
+    setShowValidation(false);
+
+    try {
+      const formData = new FormData();
+      formData.append('product_name', productForm.product_name);
+      // Only send product_price if user entered a value, otherwise don't pass the parameter
+      if (productForm.product_price.trim()) {
+        formData.append('product_price', productForm.product_price);
+      }
+      // Only send product_full_price if user entered a value
+      if (productForm.product_full_price.trim()) {
+        formData.append('product_full_price', productForm.product_full_price);
+      }
+      formData.append('product_description', productForm.product_description);
+      formData.append('sub_category_id', productForm.sub_category_id);
+
+      // Append optional shipping fields
+      if (productForm.weight.trim()) {
+        formData.append('weight', productForm.weight);
+      }
+      if (productForm.length.trim()) {
+        formData.append('length', productForm.length);
+      }
+      if (productForm.width.trim()) {
+        formData.append('width', productForm.width);
+      }
+      if (productForm.height.trim()) {
+        formData.append('height', productForm.height);
+      }
+      if (productForm.origin_location.trim()) {
+        formData.append('origin_location', productForm.origin_location);
+      }
+
+      if (productForm.file) {
+        console.log('Appending file:', {
+          name: productForm.file.name,
+          size: productForm.file.size,
+          type: productForm.file.type
+        });
+        formData.append('file', productForm.file, productForm.file.name);
+      }
+
+      const response = await fetch(config.CREATE_PRODUCTS, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${user?.token}`
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        setShowAddProductModal(false);
+        resetProductForm();
+        // Reload the page to show the new product
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        alert(error.detail || 'Failed to create product');
+      }
+    } catch (error) {
+      console.error('Error creating product:', error);
+      alert('Error creating product');
+    }
+  };
 
   useEffect(() => {
     // Sort products when sortBy changes
@@ -208,6 +393,31 @@ export default function ProductsBySubcategory() {
     navigate(`/admin/edit-product/${productId}`);
   };
 
+  const handleDeleteProduct = async (e: React.MouseEvent, productId: number) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this product?')) return;
+    
+    try {
+      const response = await fetch(config.PRODUCT_DELETE(productId), {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${user?.token}`
+        }
+      });
+      
+      if (response.ok) {
+        // Reload the page to show updated product listing
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        alert(error.detail || error.message || 'Failed to delete product');
+      }
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      alert('Error deleting product');
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -242,6 +452,17 @@ export default function ProductsBySubcategory() {
 
         {/* Search Bar and Controls */}
         <div className="flex flex-col md:flex-row md:items-center gap-3">
+          {/* Add Product Button (Admin Only) */}
+          {canEdit && (
+            <Button
+              onClick={openAddProductModal}
+              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Product
+            </Button>
+          )}
+          
           {/* Search Bar */}
           <div className="relative w-full md:flex-1 md:max-w-md">
             <div className="relative">
@@ -446,17 +667,28 @@ export default function ProductsBySubcategory() {
                 }
                 onClick={() => handleProductClick(product.product_id)}
               >
-                {/* Admin Edit Button - appears on hover */}
+                {/* Admin Edit and Delete Buttons - appears on hover */}
                 {canEdit && viewMode === 'grid' && (
-                  <Button 
-                    size="sm" 
-                    variant="secondary"
-                    onClick={e => handleEditProduct(e, product.product_id)}
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/90 hover:bg-white shadow-md text-pink-600"
-                  >
-                    <Edit className="w-3 h-3 mr-1" />
-                    Edit
-                  </Button>
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="secondary"
+                      onClick={e => handleEditProduct(e, product.product_id)}
+                      className="bg-white/90 hover:bg-white shadow-md text-pink-600"
+                    >
+                      <Edit className="w-3 h-3 mr-1" />
+                      Edit
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="destructive"
+                      onClick={e => handleDeleteProduct(e, product.product_id)}
+                      className="bg-white/90 hover:bg-white shadow-md"
+                    >
+                      <Trash2 className="w-3 h-3 mr-1" />
+                      Delete
+                    </Button>
+                  </div>
                 )}
                   <div className={viewMode === 'grid' ? 'mb-3 relative w-full' : 'mr-4 w-32 h-32 flex-shrink-0 relative'}>
                   {images.length > 0 ? (
@@ -466,6 +698,9 @@ export default function ProductsBySubcategory() {
                             src={images[currentIndex]}
                             alt={product.product_name}
                             className="w-full h-full object-contain p-1"
+                            loading="lazy"
+                            decoding="async"
+                            fetchPriority={currentIndex === 0 && imageIndexes[product.product_id] === undefined ? "high" : "low"}
                           />
                         </div>
                       {showArrows && (
@@ -545,15 +780,25 @@ export default function ProductsBySubcategory() {
                       </Button>
                     )}
                     {canEdit && (
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={e => handleEditProduct(e, product.product_id)}
-                        className="text-pink-600 border-pink-200 hover:bg-pink-50"
-                      >
-                        <Edit className="w-3 h-3 mr-1" />
-                        Edit
-                      </Button>
+                      <>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={e => handleEditProduct(e, product.product_id)}
+                          className="text-pink-600 border-pink-200 hover:bg-pink-50"
+                        >
+                          <Edit className="w-3 h-3 mr-1" />
+                          Edit
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="destructive" 
+                          onClick={e => handleDeleteProduct(e, product.product_id)}
+                        >
+                          <Trash2 className="w-3 h-3 mr-1" />
+                          Delete
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -631,6 +876,223 @@ export default function ProductsBySubcategory() {
           <span className="text-sm text-gray-600 ml-2">
             Page {currentPage} of {totalPages}
           </span>
+        </div>
+      )}
+
+      {/* Add Product Modal */}
+      {showAddProductModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Add Product</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setShowAddProductModal(false);
+                  resetProductForm();
+                  setProductNameError('');
+                }}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="product_name">Product Name <span className="text-red-500">*</span></Label>
+                <Input
+                  value={productForm.product_name}
+                  onChange={(e) => setProductForm({...productForm, product_name: e.target.value})}
+                  required
+                />
+                {productNameError && (
+                  <div className="text-red-500 text-sm mt-1">{productNameError}</div>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="product_price">Selling Price (Optional)</Label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="\\d*"
+                  value={productForm.product_price}
+                  onChange={handlePriceChange}
+                  placeholder="Enter price or leave empty"
+                />
+              </div>
+              <div>
+                <Label htmlFor="product_full_price">Original/Full Price (Optional)</Label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="\\d*"
+                  value={productForm.product_full_price}
+                  onChange={handleFullPriceChange}
+                  placeholder="Enter original price or leave empty"
+                />
+                <p className="text-xs text-gray-500 mt-1">Leave empty if no discount. This shows crossed-out price.</p>
+              </div>
+              <div>
+                <Label htmlFor="product_description">Description (Optional)</Label>
+                <Input
+                  value={productForm.product_description}
+                  onChange={(e) => setProductForm({...productForm, product_description: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="sub_category_id">Subcategory <span className="text-red-500">*</span></Label>
+                <Select
+                  value={productForm.sub_category_id}
+                  onValueChange={(value) => setProductForm({...productForm, sub_category_id: value})}
+                  required
+                >
+                  <SelectTrigger className="w-full z-[110] relative">
+                    <SelectValue placeholder="Select a subcategory" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px] overflow-y-auto z-[9999] relative">
+                    {allSubcategories.map((subcategory) => (
+                      <SelectItem 
+                        key={subcategory.sub_category_id} 
+                        value={subcategory.sub_category_id.toString()}
+                        className="cursor-pointer hover:bg-gray-100"
+                      >
+                        {subcategory.sub_category_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Shipping Information Section */}
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-medium text-gray-900 mb-3">Shipping Information (Optional)</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="weight">Weight (kg)</Label>
+                    <Input
+                      id="weight"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={productForm.weight}
+                      onChange={(e) => setProductForm({...productForm, weight: e.target.value})}
+                      placeholder="e.g., 1.5"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="origin_location">Origin Location</Label>
+                    <Input
+                      id="origin_location"
+                      value={productForm.origin_location}
+                      onChange={(e) => setProductForm({...productForm, origin_location: e.target.value})}
+                      placeholder="e.g., New York, USA"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                  <div>
+                    <Label htmlFor="length">Length (cm)</Label>
+                    <Input
+                      id="length"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={productForm.length}
+                      onChange={(e) => setProductForm({...productForm, length: e.target.value})}
+                      placeholder="e.g., 25.5"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="width">Width (cm)</Label>
+                    <Input
+                      id="width"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={productForm.width}
+                      onChange={(e) => setProductForm({...productForm, width: e.target.value})}
+                      placeholder="e.g., 15.0"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="height">Height (cm)</Label>
+                    <Input
+                      id="height"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={productForm.height}
+                      onChange={(e) => setProductForm({...productForm, height: e.target.value})}
+                      placeholder="e.g., 10.5"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="product_file">Product Image (Optional)</Label>
+                <Input
+                  id="product_file"
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    if (file) {
+                      // Validate file type
+                      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                      if (!validTypes.includes(file.type)) {
+                        alert('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
+                        e.target.value = '';
+                        return;
+                      }
+                      // Validate file size (500 KB)
+                      if (file.size > 512000) {
+                        alert(`Image is too large. Maximum size is 500 KB. Current size: ${(file.size / 1024).toFixed(2)} KB`);
+                        e.target.value = '';
+                        return;
+                      }
+                    }
+                    setProductForm({...productForm, file});
+                  }}
+                />
+                {productForm.file && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Selected: {productForm.file.name} ({(productForm.file.size / 1024).toFixed(2)} KB)
+                  </p>
+                )}
+                <p className="text-xs text-gray-400 mt-1">
+                  Maximum size: 500 KB for optimal performance
+                </p>
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  onClick={handleCreateProduct}
+                  className="flex-1"
+                  disabled={
+                    !productForm.product_name ||
+                    !productForm.sub_category_id ||
+                    productNameError !== ''
+                  }
+                >
+                  Create
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowAddProductModal(false);
+                    resetProductForm();
+                    setProductNameError('');
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

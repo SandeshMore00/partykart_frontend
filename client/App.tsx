@@ -33,6 +33,7 @@ import Offers from "./pages/Offers";
 import OrderList from "./pages/OrderList";
 import Courses from "./pages/Courses";
 import OrderDetailPage from "./pages/OrderDetail";
+import Notes from "./pages/Notes";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,7 @@ const App = () => (
                 <Route path="offers" element={<Offers />} />
                 <Route path="orders" element={<OrderList />} />
                 <Route path="order/:orderId" element={<OrderDetailPage />} />
+                <Route path="notes" element={<Notes />} />
 
                 {/* Policy routes */}
                 <Route path="policy/privacy" element={<PrivacyPolicy />} />

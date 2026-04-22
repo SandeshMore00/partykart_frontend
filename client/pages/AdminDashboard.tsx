@@ -17,7 +17,7 @@ interface Product {
   product_full_price?: number;
   product_description: string;
   stock?: number;
-  sub_category_id: number;
+  sub_category_id: number | null;
   // Shipping fields
   weight?: number;
   length?: number;
@@ -44,6 +44,7 @@ interface OrderAlert {
   buy_product_id: number;
   order_id: number;
   total_amount: number;
+  total_shipping_charges?: number;
   delivery_status: string;
   created_by: number;
   created_at: string;
@@ -484,7 +485,7 @@ export default function AdminDashboard() {
       formData.append('product_name', productForm.product_name);
       // Only send product_price if user entered a value, otherwise don't pass the parameter
       if (productForm.product_price.trim()) {
-        formData.append('product_price', productForm.product_price);
+      formData.append('product_price', productForm.product_price);
       }
       formData.append('product_description', productForm.product_description);
       formData.append('sub_category_id', productForm.sub_category_id);
@@ -578,7 +579,7 @@ export default function AdminDashboard() {
       formData.append('product_description', productForm.product_description);
       hasChange = true;
     }
-    if (productForm.sub_category_id !== originalProduct?.sub_category_id.toString()) {
+    if (productForm.sub_category_id !== (originalProduct?.sub_category_id?.toString() || '')) {
       formData.append('sub_category_id', productForm.sub_category_id);
       hasChange = true;
     }
@@ -649,7 +650,7 @@ export default function AdminDashboard() {
       product_name: product.product_name,
       product_price: product.product_price.toString(),
       product_description: product.product_description,
-      sub_category_id: product.sub_category_id.toString(),
+      sub_category_id: product.sub_category_id?.toString() || '',
       file: null,
       // Set shipping fields
       weight: product.weight?.toString() || '',
@@ -950,24 +951,24 @@ export default function AdminDashboard() {
     
     // Only check for duplicate if name is being changed
     if (nameChanged) {
-      try {
-        const headers = { 'Authorization': `Bearer ${user?.token}` };
-        const subcategoriesResponse = await fetch(config.CATEGORY_SUBCATEGORY(), { headers });
-        let latestSubcategories = subcategories;
-        if (subcategoriesResponse.ok) {
-          const subcategoriesResult = await subcategoriesResponse.json();
-          if (subcategoriesResult.status === 1 && subcategoriesResult.data) {
-            latestSubcategories = subcategoriesResult.data;
-          }
+    try {
+      const headers = { 'Authorization': `Bearer ${user?.token}` };
+      const subcategoriesResponse = await fetch(config.CATEGORY_SUBCATEGORY(), { headers });
+      let latestSubcategories = subcategories;
+      if (subcategoriesResponse.ok) {
+        const subcategoriesResult = await subcategoriesResponse.json();
+        if (subcategoriesResult.status === 1 && subcategoriesResult.data) {
+          latestSubcategories = subcategoriesResult.data;
         }
-        // Prevent duplicate name (except for the current subcategory)
-        const duplicate = latestSubcategories.some(
-          s => s.sub_category_name.trim().toLowerCase() === subcategoryForm.sub_category_name.trim().toLowerCase() && s.sub_category_id !== editingSubcategory?.sub_category_id
-        );
-        if (duplicate) {
-          setSubcategoryNameError('Sub category already present');
-          return;
-        }
+      }
+      // Prevent duplicate name (except for the current subcategory)
+      const duplicate = latestSubcategories.some(
+        s => s.sub_category_name.trim().toLowerCase() === subcategoryForm.sub_category_name.trim().toLowerCase() && s.sub_category_id !== editingSubcategory?.sub_category_id
+      );
+      if (duplicate) {
+        setSubcategoryNameError('Sub category already present');
+        return;
+      }
       } catch (error) {
         console.error('Error checking duplicates:', error);
       }
@@ -983,7 +984,7 @@ export default function AdminDashboard() {
       
       // Only append category_id if changed
       if (categoryChanged) {
-        formData.append('category_id', subcategoryForm.category_id);
+      formData.append('category_id', subcategoryForm.category_id);
       }
       
       // Only append image if new image selected or removing existing
@@ -1826,7 +1827,9 @@ export default function AdminDashboard() {
                         <div
                           key={product.product_id}
                           onClick={() => handleProductSearchResultClick(product.product_id)}
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                          className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 ${
+                            product.sub_category_id === null ? 'bg-yellow-50' : ''
+                          }`}
                         >
                           <div className="flex-1 min-w-0">
                             <h3 className="font-medium text-gray-900 truncate">{product.product_name}</h3>
@@ -1859,7 +1862,10 @@ export default function AdminDashboard() {
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {safeFilteredProducts.map(product => (
-                <Card key={product.product_id}>
+                <Card 
+                  key={product.product_id}
+                  className={product.sub_category_id === null ? 'bg-yellow-50 border-yellow-200' : ''}
+                >
                   <CardHeader>
                     <CardTitle>{product.product_name}</CardTitle>
                   </CardHeader>
@@ -2064,6 +2070,8 @@ export default function AdminDashboard() {
                         src={subcategory.sub_category_image} 
                         alt={subcategory.sub_category_name} 
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        loading="lazy"
+                        decoding="async"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
@@ -2166,6 +2174,16 @@ export default function AdminDashboard() {
                         <h4 className="font-semibold text-gray-700 mb-1">Total Amount</h4>
                         <p className="text-lg font-bold text-pink-600">₹{order.total_amount.toLocaleString('en-IN')}</p>
                       </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-700 mb-1">Shipping Charges</h4>
+                        <p className="text-lg font-bold text-green-600">
+                          {order.total_shipping_charges !== undefined && order.total_shipping_charges !== null
+                            ? `₹${order.total_shipping_charges.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
                       <div>
                         <h4 className="font-semibold text-gray-700 mb-1">Created By</h4>
                         <p className="text-gray-600">User #{order.created_by}</p>
@@ -2362,6 +2380,8 @@ export default function AdminDashboard() {
                               src={getYoutubeThumbnail(course.course_link)}
                               alt={course.course_name}
                               className="w-16 h-12 object-cover rounded"
+                              loading="lazy"
+                              decoding="async"
                               onError={(e) => {
                                 e.currentTarget.src = '/placeholder.svg';
                               }}
@@ -2602,6 +2622,8 @@ export default function AdminDashboard() {
                                                     src={getYoutubeThumbnail(course.course_link)}
                                                     alt={course.course_name}
                                                     className="w-full h-full object-cover"
+                                                    loading="lazy"
+                                                    decoding="async"
                                                     onError={(e) => {
                                                       e.currentTarget.src = '/placeholder.svg';
                                                     }}
@@ -3032,6 +3054,8 @@ export default function AdminDashboard() {
                     src={subcategoryImagePreview} 
                     alt="Subcategory preview" 
                     className="w-full h-40 object-cover"
+                    loading="eager"
+                    decoding="async"
                   />
                   <Button
                     type="button"

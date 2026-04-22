@@ -73,7 +73,7 @@ export default function Index() {
 
   // Scroll to top on mount for homepage
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' });
+      window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
 
   useEffect(() => {
@@ -230,6 +230,8 @@ export default function Index() {
                       src={product.product_image}
                       alt={product.product_name}
                       className="w-full h-full object-contain p-2"
+                      loading="lazy"
+                      decoding="async"
                     />
                   </div>
                   <div className="p-4">

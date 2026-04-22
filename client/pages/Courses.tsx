@@ -822,6 +822,8 @@ const Courses: React.FC = () => {
                         src={getYoutubeThumbnail(course.course_link)}
                         alt={course.course_name}
                         className="w-16 h-12 object-cover rounded"
+                        loading="lazy"
+                        decoding="async"
                         onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}
                       />
                     )}
@@ -1021,6 +1023,8 @@ const Courses: React.FC = () => {
                                                 src={getYoutubeThumbnail(course.course_link)}
                                                 alt={course.course_name}
                                                 className="w-full h-full object-cover"
+                                                loading="lazy"
+                                                decoding="async"
                                                 onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}
                                               />
                                               <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
@@ -1250,6 +1254,8 @@ const Courses: React.FC = () => {
                       src={getYoutubeThumbnail(courseForm.course_link)}
                       alt="Video preview"
                       className="w-full aspect-video object-cover"
+                      loading="eager"
+                      decoding="async"
                       onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
                   </div>

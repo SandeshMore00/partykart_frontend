@@ -224,9 +224,9 @@
 
 // config.ts
 
-// const BASE_URL = "https://thepartykart.com"; // or "http://localhost:9000" for dev
+const BASE_URL = "https://thepartykart.com"; // or "http://localhost:9000" for dev
 
-const BASE_URL = "http://localhost:9000"; // Local FastAPI server
+// const BASE_URL = "http://localhost:9000"; // Local FastAPI server
 
 // const BASE_URL = "http://20.253.178.184";    // azure server
 
@@ -348,5 +348,15 @@ export default {
   // ---- BigShip Integration ----
   BIGSHIP_CREATE_ORDER: `${BASE_URL}/v1/bigship/order/create`,
   BIGSHIP_MANIFEST: `${BASE_URL}/v1/bigship/order/manifest`,
+  BIGSHIP_MANIFEST_ORDER: (orderId: number) => `${BASE_URL}/v1/bigship/order/${orderId}/manifest`,
   BIGSHIP_CALCULATE_RATES: `${BASE_URL}/v1/bigship/calculate-rates`,
+  BIGSHIP_ADMIN_SHIPMENT: (orderId: number) => `${BASE_URL}/v1/bigship/admin/order/${orderId}/shipment`,
+  BIGSHIP_TRACK_ORDER: (orderId: number) => `${BASE_URL}/v1/bigship/order/${orderId}/track/full`,
+  BIGSHIP_CANCEL_ORDER: (orderId: number) => `${BASE_URL}/v1/bigship/order/${orderId}/cancel`,
+
+  // ---- Notes ----
+  NOTES_CREATE: `${BASE_URL}/v1/notes/create`,
+  NOTES_FETCH: (page: number = 1, limit: number = 10) => `${BASE_URL}/v1/notes/fetch?page=${page}&limit=${limit}`,
+  NOTES_UPDATE: (noteId: number | string) => `${BASE_URL}/v1/notes/update/${noteId}`,
+  NOTES_DELETE: (noteId: number | string) => `${BASE_URL}/v1/notes/delete/${noteId}`,
 };

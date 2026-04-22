@@ -224,8 +224,10 @@ const DashboardCarousel: React.FC = () => {
         <img
           src={images[current].dashboard_image_link}
           alt={`Dashboard ${current + 1}`}
-          className="w-full h-full object-contain transition-all duration-700 cursor-pointer"
-          onClick={() => setShowFullScreen(true)}
+          className="w-full h-full object-contain transition-all duration-700"
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
         />
       </div>
       
@@ -354,6 +356,8 @@ const DashboardCarousel: React.FC = () => {
               src={images[current].dashboard_image_link}
               alt={`Dashboard ${current + 1}`}
               className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+              loading="eager"
+              decoding="async"
             />
             
             {/* Image counter */}
@@ -392,6 +396,8 @@ const DashboardCarousel: React.FC = () => {
                       src={img.dashboard_image_link}
                       alt={`Thumbnail ${idx + 1}`}
                       className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                   </button>
                 ))}

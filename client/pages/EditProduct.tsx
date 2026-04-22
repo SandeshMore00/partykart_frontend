@@ -69,8 +69,17 @@ export default function EditProduct() {
 
   useEffect(() => {
     if (id) {
-      fetchProduct(parseInt(id));
-      fetchSubcategories();
+      const productId = parseInt(id);
+      if (!isNaN(productId) && productId > 0) {
+        fetchProduct(productId);
+        fetchSubcategories();
+      } else {
+        setError('Invalid product ID');
+        setFetchingProduct(false);
+      }
+    } else {
+      setError('Product ID is required');
+      setFetchingProduct(false);
     }
   }, [id]);
 
@@ -98,6 +107,7 @@ export default function EditProduct() {
         console.log('Product details response:', result);
         if (result.status === 1) {
           const productData = result.data;
+          console.log('Product data:', productData);
           setProduct(productData);
           
           // Get image URLs from product_images array (array of strings)
@@ -106,11 +116,11 @@ export default function EditProduct() {
           setExistingImageUrls(imageUrls);
           
           const initialFormData = {
-            product_name: productData.product_name,
-            product_price: productData.product_price.toString(),
+            product_name: productData.product_name || '',
+            product_price: productData.product_price?.toString() || '',
             product_full_price: productData.product_full_price?.toString() || '', // Optional original/full price
             product_description: productData.product_description || '',
-            sub_category_id: productData.sub_category_id.toString(),
+            sub_category_id: productData.sub_category_id?.toString() || '',
             stock: productData.stock?.toString() || '',
             files: [],
             // Optional shipping fields
@@ -121,13 +131,15 @@ export default function EditProduct() {
             origin_location: productData.origin_location || ''
           };
           
+          console.log('Initial form data:', initialFormData);
           setFormData(initialFormData);
           setOriginalData(initialFormData);
         } else {
-          setError('Product not found');
+          setError(result.message || 'Product not found');
         }
       } else {
-        setError('Failed to fetch product');
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData.message || 'Failed to fetch product');
       }
     } catch (error) {
       console.error('Error fetching product:', error);
@@ -589,6 +601,8 @@ export default function EditProduct() {
                             src={imageUrl.startsWith('http') ? imageUrl : `${config.PRODUCTS_SERVICE_URL}${imageUrl}`}
                             alt={`Product image ${index + 1}`}
                             className="w-full h-32 object-cover rounded-lg border"
+                            loading="lazy"
+                            decoding="async"
                           />
                           <button
                             type="button"
@@ -619,6 +633,8 @@ export default function EditProduct() {
                             src={imageUrl.startsWith('http') ? imageUrl : `${config.PRODUCTS_SERVICE_URL}${imageUrl}`}
                             alt={`Deleted image ${index + 1}`}
                             className="w-full h-32 object-cover rounded-lg border border-red-300"
+                            loading="lazy"
+                            decoding="async"
                           />
                           <button
                             type="button"
@@ -669,6 +685,8 @@ export default function EditProduct() {
                             src={preview}
                             alt={`Preview ${index + 1}`}
                             className="w-full h-32 object-cover rounded-lg border border-green-300"
+                            loading="eager"
+                            decoding="async"
                           />
                           <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-2 py-1 rounded-b-lg">
                             {(formData.files[index].size / 1024).toFixed(2)} KB

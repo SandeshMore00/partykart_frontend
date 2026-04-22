@@ -8,18 +8,32 @@ import config from '../config';
 interface OrderItem {
   product_name: string;
   quantity: number;
-  price_per_unit: string;
+  price: string;
   subtotal: string;
+}
+
+interface ShippingDetails {
+  tat: number;
+  zone: string;
+  courier_id: number;
+  courier_name: string;
+  courier_type: string;
+  total_shipping_charges: number;
 }
 
 interface OrderDetails {
   order_id: number;
-  total_amount: string;
-  final_amount: string;
-  payment_status: string;
-  delivery_status: string;
+  total: string;
+  status: string;
+  total_shipping_charges?: number;
+  shipping_details?: ShippingDetails;
   created_at?: string;
   items: OrderItem[];
+  // Legacy fields for backward compatibility
+  total_amount?: string;
+  final_amount?: string;
+  payment_status?: string;
+  delivery_status?: string;
 }
 
 export default function OrderDetailPage() {
@@ -105,16 +119,17 @@ export default function OrderDetailPage() {
                 )}
                 <div className="flex flex-wrap gap-2">
                   <div className={`inline-block px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
-                    order.payment_status === 'Completed' || order.payment_status === 'Paid'
+                    (order.payment_status || order.status) === 'Completed' || (order.payment_status || order.status) === 'Paid'
                       ? 'bg-green-100 text-green-800'
-                      : order.payment_status === 'Pending'
+                      : (order.payment_status || order.status) === 'Pending'
                       ? 'bg-yellow-100 text-yellow-800'
-                      : order.payment_status === 'Failed'
+                      : (order.payment_status || order.status) === 'Failed'
                       ? 'bg-red-100 text-red-800'
                       : 'bg-gray-100 text-gray-800'
                   }`}>
-                    Payment: {order.payment_status}
+                    Status: {order.status || order.payment_status || 'Pending'}
                   </div>
+                  {order.delivery_status && (
                   <div className={`inline-block px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
                     order.delivery_status === 'Delivered' 
                       ? 'bg-green-100 text-green-800'
@@ -126,21 +141,17 @@ export default function OrderDetailPage() {
                   }`}>
                     Delivery: {order.delivery_status}
                   </div>
+                  )}
                 </div>
               </div>
               <div className="text-left sm:text-right">
-                <p className="text-gray-600 text-sm mb-1">Final Amount</p>
+                <p className="text-gray-600 text-sm mb-1">Total Amount</p>
                 <p className="text-2xl sm:text-3xl font-bold text-pink-600">
-                  ₹{order.final_amount && !isNaN(parseFloat(order.final_amount)) 
-                    ? parseFloat(order.final_amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                  ₹{(order.total || order.final_amount) && !isNaN(parseFloat(order.total || order.final_amount || '0')) 
+                    ? parseFloat(order.total || order.final_amount || '0').toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                     : '0.00'
                   }
                 </p>
-                {order.total_amount && order.total_amount !== order.final_amount && (
-                  <p className="text-sm text-gray-500 line-through mt-1">
-                    ₹{parseFloat(order.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                )}
               </div>
             </div>
 
@@ -149,7 +160,9 @@ export default function OrderDetailPage() {
               <h3 className="text-lg sm:text-xl font-semibold mb-4 text-gray-800">Order Items</h3>
               <div className="space-y-4">
                 {order.items.map((item, index) => {
-                  const pricePerUnit = item.price_per_unit && !isNaN(parseFloat(item.price_per_unit)) ? parseFloat(item.price_per_unit) : 0;
+                  const pricePerUnit = (item.price || item.price_per_unit) && !isNaN(parseFloat(item.price || item.price_per_unit || '0')) 
+                    ? parseFloat(item.price || item.price_per_unit || '0') 
+                    : 0;
                   const subtotal = item.subtotal && !isNaN(parseFloat(item.subtotal)) ? parseFloat(item.subtotal) : 0;
                   
                   return (
@@ -161,7 +174,10 @@ export default function OrderDetailPage() {
                         <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600">
                           <span>Qty: {item.quantity}</span>
                           <span className="hidden sm:inline">•</span>
-                          <span>Price: ₹{pricePerUnit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          <span>Price: ₹{(item.price || item.price_per_unit) && !isNaN(parseFloat(item.price || item.price_per_unit || '0')) 
+                            ? parseFloat(item.price || item.price_per_unit || '0').toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            : '0.00'
+                          }</span>
                         </div>
                       </div>
                       <div className="text-left sm:text-right">
@@ -176,26 +192,84 @@ export default function OrderDetailPage() {
               </div>
             </div>
 
+            {/* Shipping Details */}
+            {order.shipping_details && (
+              <div className="border-t mt-6 pt-6">
+                <h3 className="text-lg sm:text-xl font-semibold mb-4 text-gray-800">Shipping Details</h3>
+                <div className="bg-gray-50 rounded-lg p-4 sm:p-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm sm:text-base">
+                    <div>
+                      <span className="text-gray-600 block mb-1">Courier:</span>
+                      <p className="font-medium text-gray-800">{order.shipping_details.courier_name}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 block mb-1">Type:</span>
+                      <p className="font-medium text-gray-800">{order.shipping_details.courier_type}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 block mb-1">Zone:</span>
+                      <p className="font-medium text-gray-800">{order.shipping_details.zone}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 block mb-1">TAT:</span>
+                      <p className="font-medium text-gray-800">{order.shipping_details.tat} day(s)</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 block mb-1">Shipping Charges:</span>
+                      <p className="font-medium text-green-600">
+                        ₹{order.shipping_details.total_shipping_charges.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 block mb-1">Courier ID:</span>
+                      <p className="font-medium text-gray-800">{order.shipping_details.courier_id}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Order Total - Responsive */}
             <div className="border-t mt-6 pt-6">
-              <div className="space-y-2">
-                {order.total_amount && (
+              <div className="space-y-3">
+                {/* Calculate subtotal from items */}
+                {(() => {
+                  const itemsSubtotal = order.items.reduce((sum, item) => {
+                    const subtotal = item.subtotal && !isNaN(parseFloat(item.subtotal)) ? parseFloat(item.subtotal) : 0;
+                    return sum + subtotal;
+                  }, 0);
+                  
+                  // Use shipping_details.total_shipping_charges if available, otherwise fallback to order.total_shipping_charges
+                  const shippingCharges = order.shipping_details?.total_shipping_charges ?? order.total_shipping_charges;
+                  
+                  return (
+                    <>
                   <div className="flex justify-between items-center text-gray-600">
-                    <span className="text-sm sm:text-base">Total Amount:</span>
+                        <span className="text-sm sm:text-base">Subtotal:</span>
                     <span className="text-base sm:text-lg font-semibold">
-                      ₹{parseFloat(order.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          ₹{itemsSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      {shippingCharges !== undefined && shippingCharges !== null && (
+                        <div className="flex justify-between items-center text-gray-600">
+                          <span className="text-sm sm:text-base">Delivery Charges:</span>
+                          <span className="text-base sm:text-lg font-semibold text-green-600">
+                            ₹{shippingCharges.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between items-center">
-                  <span className="text-base sm:text-lg font-semibold text-gray-800">Final Amount:</span>
+                      <div className="flex justify-between items-center pt-2 border-t">
+                        <span className="text-base sm:text-lg font-semibold text-gray-800">Total:</span>
                   <span className="text-xl sm:text-2xl font-bold text-pink-600">
-                    ₹{order.final_amount && !isNaN(parseFloat(order.final_amount))
-                      ? parseFloat(order.final_amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                          ₹{(order.total || order.final_amount) && !isNaN(parseFloat(order.total || order.final_amount || '0'))
+                            ? parseFloat(order.total || order.final_amount || '0').toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                       : '0.00'
                     }
                   </span>
                 </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>

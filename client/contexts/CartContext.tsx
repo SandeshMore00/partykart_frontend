@@ -52,6 +52,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         title: "Out of Stock",
         description: `${product.name} is currently out of stock.`,
         variant: "destructive",
+        duration: 2000,
       });
       return { success: false, message: "Product is out of stock" };
     }
@@ -76,6 +77,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             title: "Cannot Add More",
             description: message,
             variant: "destructive",
+            duration: 2000,
           });
           return prevItems;
         } else {
@@ -83,6 +85,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           toast({
             title: "Limited Stock",
             description: message,
+            duration: 2000,
           });
         }
       } else {
@@ -90,6 +93,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         toast({
           title: "Added to Cart",
           description: message,
+          duration: 2000,
         });
       }
 
@@ -130,6 +134,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         title: "Stock Limit Exceeded",
         description: `Only ${stock} item(s) available in stock. ${stock === 1 ? 'Only one left!' : ''}`,
         variant: "destructive",
+        duration: 2000,
       });
       
       // Set to maximum available

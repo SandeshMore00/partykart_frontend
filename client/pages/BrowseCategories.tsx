@@ -281,21 +281,23 @@ const BrowseCategories: React.FC = () => {
           >
             {/* Category Image */}
             <div className="relative h-40 overflow-hidden bg-gradient-to-br from-pink-50 to-pink-100">
-              {category.category_image ? (
+            {category.category_image ? (
                 <img 
                   src={category.category_image} 
                   alt={category.category_name} 
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  loading="lazy"
+                  decoding="async"
                 />
-              ) : (
+            ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <div className="w-20 h-20 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center shadow-lg">
                     <span className="text-4xl font-bold text-white">
                       {category.category_name.charAt(0).toUpperCase()}
                     </span>
                   </div>
-                </div>
-              )}
+              </div>
+            )}
               
               {/* Overlay gradient */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -395,6 +397,8 @@ const BrowseCategories: React.FC = () => {
                       src={imagePreview} 
                       alt="Category preview" 
                       className="w-full h-40 object-cover"
+                      loading="eager"
+                      decoding="async"
                     />
                     <Button
                       type="button"

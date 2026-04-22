@@ -622,6 +622,9 @@ export default function ProductDetail() {
                   alt={`${product.product_name} ${selectedImageIndex + 1}`}
                   className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
                   onClick={() => window.open(getMainImage(), '_blank')}
+                  loading={selectedImageIndex === 0 ? "eager" : "lazy"}
+                  decoding="async"
+                  fetchPriority={selectedImageIndex === 0 ? "high" : "low"}
                 />
 
                 {/* Right Arrow */}

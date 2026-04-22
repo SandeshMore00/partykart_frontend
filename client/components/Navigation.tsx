@@ -219,7 +219,7 @@ interface SearchProduct {
 export default function Navigation({ onLoginClick }: NavigationProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin, isSuperAdmin } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
   // Search states
@@ -240,7 +240,14 @@ export default function Navigation({ onLoginClick }: NavigationProps) {
 
   const authenticatedNavItems: NavItem[] = [{ path: "/orders", label: "Orders" }];
 
-  const allNavItems = user ? [...navItems, ...authenticatedNavItems] : navItems;
+  // Admin-only nav items
+  const adminNavItems: NavItem[] = (isAdmin() || isSuperAdmin()) 
+    ? [{ path: "/notes", label: "Notes" }] 
+    : [];
+
+  const allNavItems = user 
+    ? [...navItems, ...authenticatedNavItems, ...adminNavItems] 
+    : navItems;
 
   const searchProducts = useCallback(async (query: string) => {
     if (!query.trim()) {

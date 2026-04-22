@@ -367,6 +367,8 @@ const SubcategoriesPage: React.FC = () => {
                     src={subcat.sub_category_image} 
                     alt={subcat.sub_category_name} 
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    loading="lazy"
+                    decoding="async"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
@@ -459,6 +461,8 @@ const SubcategoriesPage: React.FC = () => {
                       src={imagePreview} 
                       alt="Subcategory preview" 
                       className="w-full h-40 object-cover"
+                      loading="eager"
+                      decoding="async"
                     />
                     <Button
                       type="button"
