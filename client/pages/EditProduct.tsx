@@ -259,10 +259,10 @@ export default function EditProduct() {
       setError('Stock must be a valid non-negative integer');
       return false;
     }
-    if (!formData.sub_category_id) {
-      setError('Subcategory is required');
-      return false;
-    }
+    // if (!formData.sub_category_id) {
+    //   setError('Subcategory is required');
+    //   return false;
+    // }
     return true;
   };
 
