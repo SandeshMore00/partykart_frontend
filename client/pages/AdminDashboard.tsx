@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+// import { useNavigate } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { Package, Users, BarChart3, Settings, Plus, Edit, Trash2, Search, X, Video, ChevronDown, ChevronRight, GraduationCap, FolderOpen, Layers, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import config from '../config';
+import { useLocation } from 'react-router-dom';
 
 interface Product {
   product_id: number;
@@ -84,6 +86,7 @@ interface DashboardStats {
 export default function AdminDashboard() {
   const { user, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<SubCategory[]>([]);
@@ -96,6 +99,7 @@ export default function AdminDashboard() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [pageSize, setPageSize] = useState(12);
+  const [jumpPage, setJumpPage] = useState('');    // added line 
   
   // Product search states
   const [productSearchQuery, setProductSearchQuery] = useState('');
@@ -208,8 +212,12 @@ export default function AdminDashboard() {
       return;
     }
     
-    fetchDashboardData();
-    
+    // fetchDashboardData();
+    const searchParams = new URLSearchParams(location.search);
+    const page = Number(searchParams.get('page')) || 1;
+
+    fetchDashboardData(page);
+
     // Auto-scroll on mobile to skip blank header space and show content properly
     if (window.innerWidth < 768) {
       setTimeout(() => {
@@ -294,12 +302,23 @@ export default function AdminDashboard() {
       setShowProductSearchResults(false);
     }
   };
+  
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<number>>(new Set());
+  
+  // const handleProductSearchResultClick = (productId: number) => {
+  //   navigate(`/admin/edit-product/${productId}`);
+  //   setProductSearchQuery('');
+  //   setShowProductSearchResults(false);
+  // };
+
 
   const handleProductSearchResultClick = (productId: number) => {
-    navigate(`/admin/edit-product/${productId}`);
+    navigate(`/admin/edit-product/${productId}?page=${currentPage}`);
+
     setProductSearchQuery('');
     setShowProductSearchResults(false);
   };
+
 
   const clearProductSearch = () => {
     setProductSearchQuery('');
@@ -405,6 +424,16 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+  const handlePageJump = () => {
+    const page = Number(jumpPage);
+
+    if (!page || page < 1 || page > totalPages) {
+      alert(`Enter page between 1 and ${totalPages}`);
+      return;
+    }
+
+    fetchDashboardData(page, pageSize);
   };
 
   const fetchOrders = async () => {
@@ -1833,8 +1862,42 @@ export default function AdminDashboard() {
                         >
                           <div className="flex-1 min-w-0">
                             <h3 className="font-medium text-gray-900 truncate">{product.product_name}</h3>
-                            {product.product_description && (
+                            {/* {product.product_description && (
                               <p className="text-sm text-gray-600 truncate">{product.product_description}</p>
+                            )} */}
+                            {product.product_description && (
+                              <div>
+                                <p
+                                  className={`text-sm text-gray-600 ${
+                                    expandedDescriptions.has(product.product_id)
+                                      ? ''
+                                      : 'line-clamp-3'
+                                  }`}
+                                >
+                                  {product.product_description}
+                                </p>
+
+                                {product.product_description.length > 100 && (
+                                  <button
+                                    className="text-blue-600 text-xs mt-1 hover:underline"
+                                    onClick={() => {
+                                      const updated = new Set(expandedDescriptions);
+
+                                      if (updated.has(product.product_id)) {
+                                        updated.delete(product.product_id);
+                                      } else {
+                                        updated.add(product.product_id);
+                                      }
+
+                                      setExpandedDescriptions(updated);
+                                    }}
+                                  >
+                                    {expandedDescriptions.has(product.product_id)
+                                      ? 'Show Less'
+                                      : 'Show More'}
+                                  </button>
+                                )}
+                              </div>
                             )}
                             {product.product_price && (
                               <div className="flex items-center gap-2 mt-1">
@@ -1886,7 +1949,7 @@ export default function AdminDashboard() {
                         ₹{product.product_price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
                       </span>
                     </div>
-                    <div className="text-sm text-gray-500 mb-2">
+                    <div className="text-sm text-gray-500 mb-2 line-clamp-2">
                       Description: {product.product_description}
                     </div>
                     {product.stock !== undefined && (
@@ -1898,7 +1961,9 @@ export default function AdminDashboard() {
                     )}
                     <div className="flex justify-between">
                       <Button
-                        onClick={() => navigate(`/admin/edit-product/${product.product_id}`)}
+                        onClick={() =>
+                          navigate(`/admin/edit-product/${product.product_id}?page=${currentPage}`)
+                        }
                         variant="outline"
                         className="mr-2"
                       >
@@ -1921,7 +1986,7 @@ export default function AdminDashboard() {
           
           {/* Pagination Controls */}
           {!loading && totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-6">
+            <div className="flex flex-col md:flex-row items-center justify-center gap-3 mt-6">
               <Button
                 variant="outline"
                 size="sm"
@@ -1980,6 +2045,31 @@ export default function AdminDashboard() {
               <span className="text-sm text-gray-600 ml-2">
                 Page {currentPage} of {totalPages}
               </span>
+              <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
+                <Input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  value={jumpPage}
+                  onChange={(e) => setJumpPage(e.target.value)}
+                  placeholder={`1-${totalPages}`}
+                  className="w-full sm:w-24"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handlePageJump();
+                    }
+                  }}
+                />
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePageJump}
+                  className="w-full sm:w-auto"
+                >
+                  Go
+                </Button>
+              </div>
             </div>
           )}
         </TabsContent>

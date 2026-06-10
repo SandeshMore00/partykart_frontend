@@ -279,17 +279,21 @@ export default function CategoryBar() {
   };
 
   // ✅ Click always works (desktop + mobile)
+  // const handleCategoryClick = (categoryId: number) => {
+  //   if (activeCategory === categoryId) {
+  //     // close if same category clicked again
+  //     setActiveCategory(null);
+  //     setSubcategories([]);
+  //   } else {
+  //     setActiveCategory(categoryId);
+  //     setHoveredCategory(null); // clear hover so click takes priority
+  //     fetchSubcategories(categoryId);
+  //   }
+  // };
   const handleCategoryClick = (categoryId: number) => {
-    if (activeCategory === categoryId) {
-      // close if same category clicked again
-      setActiveCategory(null);
-      setSubcategories([]);
-    } else {
-      setActiveCategory(categoryId);
-      setHoveredCategory(null); // clear hover so click takes priority
-      fetchSubcategories(categoryId);
-    }
+    navigate(`/categories/${categoryId}`);
   };
+
 
   // Click-away handler for desktop
   useEffect(() => {

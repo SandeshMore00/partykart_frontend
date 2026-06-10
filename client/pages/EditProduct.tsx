@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+// import { useNavigate, useParams } from 'react-router-dom';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,7 +31,13 @@ interface EditProductFormData {
 }
 
 export default function EditProduct() {
+  // const navigate = useNavigate();
+  // const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const returnPage = Number(searchParams.get('page')) || 1;
+
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -354,8 +362,11 @@ export default function EditProduct() {
           // Scroll to top to show success message
           window.scrollTo({ top: 0, behavior: 'smooth' });
           // Go back to the previous page after showing message
+          // setTimeout(() => {
+          //   navigate(-1);
+          // }, 1500);
           setTimeout(() => {
-            navigate(-1);
+            navigate(`/admin?page=${returnPage}`);
           }, 1500);
         } else {
           setError(result.message || 'Failed to update product');
@@ -716,7 +727,11 @@ export default function EditProduct() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate('/admin')}
+                  onClick={() => {
+                    console.log('Cancel clicked, returning to page:', returnPage);
+
+                    navigate(`/admin?page=${returnPage}`);
+                  }}
                   className="flex-1"
                 >
                   Cancel
